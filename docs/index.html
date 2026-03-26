@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CinaMídia</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<!--
+  SENZA SDK (CDN)
+  Em produção via NPM: import { init, uiReady, SenzaShakaPlayer, lifecycle } from "senza-sdk"
+-->
+<script src="https://senza-sdk.streaming.synamedia.com/latest/bundle.js"></script>
+
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0e1520;
+    --surface2: #151e2d;
+    --border: rgba(255,255,255,0.07);
+    --accent: #e8a020;
+    --accent2: #c0392b;
+    --text: #e8eaf0;
+    --muted: #6b7a99;
+    --radius: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow-x:hidden; }
+
+  header {
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 32px; height:64px;
+    background:linear-gradient(to bottom, rgba(8,12,18,0.98), transparent);
+    border-bottom:1px solid var(--border); backdrop-filter:blur(12px);
+  }
+  .logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--accent); }
+  .logo span { color:var(--text); }
+  .senza-badge {
+    font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    background:rgba(232,160,32,0.15); color:var(--accent);
+    border:1px solid rgba(232,160,32,0.3); border-radius:20px;
+    padding:3px 10px; margin-left:12px;
+  }
+  .search-bar {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 14px; width:260px;
+  }
+  .search-bar input {
+    background:none; border:none; outline:none;
+    color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; width:100%;
+  }
+  .search-bar input::placeholder { color:var(--muted); }
+
+  .layout { display:flex; padding-top:64px; height:100vh; }
+
+  .sidebar {
+    width:220px; flex-shrink:0;
+    background:var(--surface); border-right:1px solid var(--border);
+    overflow-y:auto; padding:16px 0;
+  }
+  .sidebar::-webkit-scrollbar { width:4px; }
+  .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  .sidebar-title { font-size:10px; font-weight:600; letter-spacing:2px; color:var(--muted); text-transform:uppercase; padding:8px 20px 12px; }
+  .cat-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 20px; cursor:pointer; border-left:3px solid transparent;
+    transition:all .15s; font-size:13px; color:var(--muted);
+  }
+  .cat-item:hover { background:var(--surface2); color:var(--text); border-left-color:var(--border); }
+  .cat-item.active { background:var(--surface2); color:var(--accent); border-left-color:var(--accent); }
+  .cat-count { font-size:11px; background:var(--surface); color:var(--muted); border-radius:20px; padding:2px 8px; border:1px solid var(--border); }
+  .cat-item.active .cat-count { background:rgba(232,160,32,0.15); color:var(--accent); border-color:rgba(232,160,32,0.3); }
+
+  .main { flex:1; overflow-y:auto; padding:28px 32px; }
+  .main::-webkit-scrollbar { width:6px; }
+  .main::-webkit-scrollbar-thumb { background:var(--surface2); border-radius:4px; }
+
+  .section-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+  .section-title { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; }
+  .section-count { font-size:12px; color:var(--muted); background:var(--surface2); padding:3px 10px; border-radius:20px; border:1px solid var(--border); }
+
+  .channel-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; margin-bottom:40px; }
+  .channel-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); overflow:hidden; cursor:pointer;
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+    aspect-ratio:16/10; position:relative; outline:none;
+  }
+  .channel-card:hover { transform:scale(1.04); border-color:rgba(232,160,32,0.4); box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:2; }
+  /* Foco via controle remoto */
+  .channel-card.focused { transform:scale(1.06); border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,160,32,0.4); z-index:3; }
+  .channel-card img { width:100%; height:100%; object-fit:contain; padding:16px; filter:brightness(0.9); transition:filter .2s; }
+  .channel-card:hover img, .channel-card.focused img { filter:brightness(1.1); }
+  .no-logo { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:12px; background:linear-gradient(135deg, var(--surface2), var(--surface)); }
+  .no-logo .ch-icon { font-size:24px; }
+  .no-logo .ch-name { font-size:11px; font-weight:500; text-align:center; color:var(--text); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .play-overlay { position:absolute; inset:0; background:rgba(232,160,32,0.15); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; }
+  .channel-card:hover .play-overlay, .channel-card.focused .play-overlay { opacity:1; }
+  .play-btn-icon { width:40px; height:40px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(232,160,32,0.5); }
+  .play-btn-icon svg { fill:white; margin-left:3px; }
+
+  /* Quando player está em background no Cloud Connector, UI desaparece */
+  body.background-mode .layout,
+  body.background-mode header { opacity:0; pointer-events:none; transition:opacity .3s; }
+
+  .player-modal {
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(5,8,14,0.96); backdrop-filter:blur(16px);
+    flex-direction:column; align-items:center; justify-content:center;
+  }
+  .player-modal.open { display:flex; animation:fadeIn .2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
+  .player-wrap { width:min(1100px,95vw); display:flex; flex-direction:column; gap:16px; }
+  .player-topbar { display:flex; align-items:center; justify-content:space-between; }
+  .player-info { display:flex; align-items:center; gap:14px; }
+  .player-logo { width:40px; height:40px; object-fit:contain; border-radius:6px; background:var(--surface); padding:4px; }
+  .player-name { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; }
+  .player-cat { font-size:12px; color:var(--muted); margin-top:2px; }
+  .close-btn { width:40px; height:40px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:20px; transition:all .15s; }
+  .close-btn:hover { background:var(--accent2); color:white; border-color:var(--accent2); }
+  .video-container { width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--radius); overflow:hidden; position:relative; border:1px solid var(--border); }
+  video { width:100%; height:100%; }
+  .player-error { display:none; position:absolute; inset:0; background:var(--surface); flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+  .player-error.show { display:flex; }
+  .player-error .err-icon { font-size:48px; }
+  .player-error p { color:var(--muted); font-size:14px; }
+
+  .admin-panel { display:none; position:fixed; inset:0; z-index:300; background:rgba(5,8,14,0.97); backdrop-filter:blur(16px); align-items:center; justify-content:center; }
+  .admin-panel.open { display:flex; }
+  .admin-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:32px; width:min(520px,92vw); }
+  .admin-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; margin-bottom:24px; }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:12px; font-weight:600; letter-spacing:.5px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; }
+  .form-group input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; transition:border .15s; }
+  .form-group input:focus { border-color:var(--accent); }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; cursor:pointer; border:none; transition:all .15s; }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover { background:#f0b030; }
+  .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-danger { background:rgba(192,57,43,0.2); color:#e74c3c; border:1px solid rgba(192,57,43,0.3); }
+  .btn-danger:hover { background:var(--accent2); color:white; }
+  .btn-row { display:flex; gap:10px; margin-top:24px; }
+  .source-list { margin-top:24px; display:flex; flex-direction:column; gap:8px; }
+  .source-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; }
+  .source-item-info { display:flex; flex-direction:column; gap:3px; }
+  .source-item-label { font-size:14px; font-weight:500; }
+  .source-item-meta { font-size:11px; color:var(--muted); }
+  .source-actions { display:flex; gap:8px; }
+  .status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted); margin-right:5px; }
+  .status-dot.synced { background:#2ecc71; }
+  .admin-toggle { width:36px; height:36px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); transition:all .15s; }
+  .admin-toggle:hover { color:var(--accent); border-color:var(--accent); }
+  .toast { position:fixed; bottom:24px; right:24px; z-index:999; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 20px; font-size:14px; display:flex; align-items:center; gap:10px; animation:slideUp .3s ease; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .empty { text-align:center; padding:80px 20px; color:var(--muted); }
+  .empty .big { font-size:48px; margin-bottom:16px; }
+
+  @media (max-width:600px) {
+    .sidebar { width:72px; }
+    .cat-item .cat-label { display:none; }
+    .cat-count { display:none; }
+    header { padding:0 16px; }
+    .search-bar { width:160px; }
+    .main { padding:20px 16px; }
+    .channel-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center">
+    <div class="logo">Cina<span>Mídia</span></div>
+    <span class="senza-badge" id="senzaBadge" style="display:none">Senza ●</span>
+  </div>
+  <div class="search-bar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="searchInput" placeholder="Buscar canal..." oninput="handleSearch(this.value)"/>
+  </div>
+  <button class="admin-toggle" onclick="toggleAdmin()" title="Configurações">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-title">Categorias</div>
+    <div id="categoryList"></div>
+  </aside>
+  <main class="main" id="mainContent">
+    <div class="empty">
+      <div class="big">📺</div>
+      <p>Nenhuma fonte configurada ainda.<br/>Clique no ⚙️ para adicionar uma playlist M3U.</p>
+    </div>
+  </main>
+</div>
+
+<!-- PLAYER -->
+<div class="player-modal" id="playerModal">
+  <div class="player-wrap">
+    <div class="player-topbar">
+      <div class="player-info">
+        <img id="playerLogo" class="player-logo" src="" alt=""/>
+        <div>
+          <div class="player-name" id="playerName"></div>
+          <div class="player-cat" id="playerCat"></div>
+        </div>
+      </div>
+      <button class="close-btn" onclick="closePlayer()">✕</button>
+    </div>
+    <div class="video-container">
+      <!-- Senza requer width/height 1920x1080 no elemento video -->
+      <video id="videoEl" width="1920" height="1080" muted playsinline></video>
+      <div class="player-error" id="playerError">
+        <div class="err-icon">⚠️</div>
+        <p>Não foi possível carregar este canal</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="admin-panel" id="adminPanel">
+  <div class="admin-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div class="admin-title">Fontes M3U</div>
+      <button class="close-btn" onclick="toggleAdmin()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Nome da Fonte</label>
+      <input type="text" id="sourceLabel" placeholder="Ex: CinaMídia IPTV"/>
+    </div>
+    <div class="form-group">
+      <label>URL M3U / Xtream Codes</label>
+      <input type="url" id="sourceUrl" placeholder="https://..."/>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="addSource()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Adicionar e Sincronizar
+      </button>
+    </div>
+    <div class="source-list" id="sourceList"></div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+// Em produção, defina window.CINAMIDIA_API antes deste script, ou use env inject da Vercel
+const API = window.CINAMIDIA_API || 'https://cinamidia-api.vercel.app/api';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let allChannels = [];
+let categories  = [];
+let activeCategory   = null;
+let senzaPlayer      = null;
+let senzaReady       = false;
+let focusedCardIndex = 0;
+let currentGridChannels = [];
+
+// ─── SENZA INIT ───────────────────────────────────────────────────────────────
+async function initSenza() {
+  try {
+    // bundle.js expõe o namespace global `senza`
+    await senza.init();
+    senzaReady = true;
+    document.getElementById('senzaBadge').style.display = 'inline';
+
+    // Reagir a mudanças de estado foreground ↔ background
+    senza.lifecycle.addEventListener('statechange', () => {
+      const bg = senza.lifecycle.state === senza.lifecycle.UiState.BACKGROUND;
+      document.body.classList.toggle('background-mode', bg);
+    });
+
+    // Sinaliza que a UI terminou de carregar
+    senza.uiReady();
+    console.info('[Senza] Iniciado — Cloud Connector ativo');
+  } catch (e) {
+    // Rodando em browser normal (Vercel preview, desktop) — tudo ok
+    console.info('[Senza] Modo browser normal');
+  }
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  await initSenza();
+  await loadData();
+  setupRemoteNav();
+});
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const [chRes, catRes] = await Promise.all([
+      fetch(`${API}/channels?page=1`),
+      fetch(`${API}/categories`)
+    ]);
+    allChannels = await chRes.json();
+    categories  = await catRes.json();
+    renderSidebar();
+    renderGrid(allChannels);
+  } catch(e) {
+    console.warn('API indisponível:', e.message);
+  }
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  document.getElementById('categoryList').innerHTML = `
+    <div class="cat-item ${!activeCategory?'active':''}" onclick="selectCategory(null)">
+      <span class="cat-label">Todos</span>
+      <span class="cat-count">${allChannels.length}</span>
+    </div>
+    ${categories.map(c => `
+      <div class="cat-item ${activeCategory===c.id?'active':''}" onclick="selectCategory(${c.id})">
+        <span class="cat-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${h(c.name)}">${h(c.name)}</span>
+        <span class="cat-count">${c.channel_count||0}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+function selectCategory(id) {
+  activeCategory = id;
+  renderSidebar();
+  renderGrid(id ? allChannels.filter(c => c.category_id === id) : allChannels);
+}
+
+// ─── GRID ─────────────────────────────────────────────────────────────────────
+function renderGrid(channels) {
+  currentGridChannels = channels;
+  focusedCardIndex = 0;
+  const main = document.getElementById('mainContent');
+  if (!channels.length) {
+    main.innerHTML = `<div class="empty"><div class="big">📺</div><p>Nenhum canal encontrado.</p></div>`;
+    return;
+  }
+  const grouped = {};
+  channels.forEach(ch => { const g = ch.group_title||'Outros'; if(!grouped[g])grouped[g]=[]; grouped[g].push(ch); });
+
+  main.innerHTML = Object.entries(grouped).map(([group, chs]) => `
+    <div class="section-header">
+      <span class="section-title">${h(group)}</span>
+      <span class="section-count">${chs.length} canais</span>
+    </div>
+    <div class="channel-grid">
+      ${chs.map(ch => `
+        <div class="channel-card" tabindex="0"
+             data-id="${ch.id}"
+             onclick="openPlayer(${ch.id})"
+             onkeydown="if(event.key==='Enter')openPlayer(${ch.id})">
+          ${ch.logo
+            ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy" onerror="this.parentNode.innerHTML=noLogoHtml('${js(ch.name)}')"/>`
+            : noLogoHtml(ch.name)}
+          <div class="play-overlay">
+            <div class="play-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function noLogoHtml(name) {
+  return `<div class="no-logo"><span class="ch-icon">📺</span><span class="ch-name">${h(name)}</span></div>`;
+}
+
+// ─── BUSCA ────────────────────────────────────────────────────────────────────
+function handleSearch(q) {
+  renderGrid(q
+    ? allChannels.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))
+    : (activeCategory ? allChannels.filter(c => c.category_id === activeCategory) : allChannels)
+  );
+}
+
+// ─── PLAYER ───────────────────────────────────────────────────────────────────
+async function openPlayer(channelId) {
+  const ch = allChannels.find(c => c.id === channelId);
+  if (!ch) return;
+
+  document.getElementById('playerModal').classList.add('open');
+  document.getElementById('playerName').textContent = ch.name;
+  document.getElementById('playerCat').textContent  = ch.group_title || '';
+  const logo = document.getElementById('playerLogo');
+  logo.src = ch.logo || '';
+  logo.style.display = ch.logo ? 'block' : 'none';
+  document.getElementById('playerError').classList.remove('show');
+
+  // Destrói instância anterior
+  if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
+
+  const video = document.getElementById('videoEl');
+  video.src = '';
+
+  if (senzaReady && typeof senza !== 'undefined' && senza.SenzaShakaPlayer) {
+    // ── MODO SENZA ────────────────────────────────────────────────────────────
+    // SenzaShakaPlayer gerencia automaticamente local (browser) e remote (Cloud Connector)
+    try {
+      senzaPlayer = new senza.SenzaShakaPlayer(video);
+      await senzaPlayer.load(ch.stream_url);
+      await video.play();
+      // Manda vídeo para o Cloud Connector → UI fica em foreground para controles
+      await senza.lifecycle.moveToBackground();
+    } catch(err) {
+      console.error('[SenzaShakaPlayer]', err);
+      showPlayerError();
+    }
+  } else {
+    // ── MODO BROWSER (Vercel preview / desktop) ───────────────────────────────
+    video.src = ch.stream_url;
+    video.onerror = () => showPlayerError();
+    video.play().catch(() => showPlayerError());
+  }
+}
+
+function showPlayerError() {
+  document.getElementById('playerError').classList.add('show');
+}
+
+async function closePlayer() {
+  document.getElementById('playerModal').classList.remove('open');
+  const video = document.getElementById('videoEl');
+  video.pause(); video.src = '';
+  if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
+  // Volta a foreground ao fechar o player
+  if (senzaReady && typeof senza !== 'undefined') {
+    try { await senza.lifecycle.moveToForeground(); } catch(e) {}
+  }
+}
+
+// ─── NAVEGAÇÃO POR CONTROLE REMOTO ────────────────────────────────────────────
+function setupRemoteNav() {
+  document.addEventListener('keydown', async (e) => {
+    const playerOpen = document.getElementById('playerModal').classList.contains('open');
+
+    if (playerOpen) {
+      // Botão BACK / Escape → fecha player (padrão Senza: back = Escape)
+      if (['Escape','Backspace','GoBack'].includes(e.key)) {
+        e.preventDefault();
+        await closePlayer();
+      }
+      return;
+    }
+
+    const cards = [...document.querySelectorAll('.channel-card')];
+    if (!cards.length) return;
+
+    // Calcula colunas dinamicamente
+    const grid = document.querySelector('.channel-grid');
+    const cols = grid ? Math.round(grid.offsetWidth / (150 + 12)) : 5;
+
+    switch(e.key) {
+      case 'ArrowRight': focusedCardIndex = Math.min(focusedCardIndex + 1, cards.length - 1); break;
+      case 'ArrowLeft':  focusedCardIndex = Math.max(focusedCardIndex - 1, 0); break;
+      case 'ArrowDown':  focusedCardIndex = Math.min(focusedCardIndex + cols, cards.length - 1); break;
+      case 'ArrowUp':    focusedCardIndex = Math.max(focusedCardIndex - cols, 0); break;
+      case 'Enter':
+      case 'OK':         cards[focusedCardIndex]?.click(); return;
+      case 'Escape':
+      case 'GoBack':     if (activeCategory) selectCategory(null); return;
+      default: return;
+    }
+
+    e.preventDefault();
+    cards.forEach(c => c.classList.remove('focused'));
+    cards[focusedCardIndex]?.classList.add('focused');
+    cards[focusedCardIndex]?.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  });
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+let sources = [];
+
+async function toggleAdmin() {
+  const panel = document.getElementById('adminPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) await loadSources();
+}
+
+async function loadSources() {
+  try { sources = await (await fetch(`${API}/sources`)).json(); renderSources(); } catch {}
+}
+
+function renderSources() {
+  document.getElementById('sourceList').innerHTML = sources.map(s => `
+    <div class="source-item">
+      <div class="source-item-info">
+        <span class="source-item-label"><span class="status-dot ${s.last_sync_at?'synced':''}"></span>${h(s.label)}</span>
+        <span class="source-item-meta">${s.channel_count?`${s.channel_count} canais`:'Não sincronizado'}${s.last_sync_at?` • ${new Date(s.last_sync_at).toLocaleDateString('pt-BR')}`:''}</span>
+      </div>
+      <div class="source-actions">
+        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="syncSource(${s.id})">↺ Sync</button>
+        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="deleteSource(${s.id})">✕</button>
+      </div>
+    </div>
+  `).join('') || '<p style="color:var(--muted);font-size:13px;text-align:center;padding:16px">Nenhuma fonte cadastrada</p>';
+}
+
+async function addSource() {
+  const label = document.getElementById('sourceLabel').value.trim();
+  const url   = document.getElementById('sourceUrl').value.trim();
+  if (!label || !url) { showToast('⚠️ Preencha todos os campos'); return; }
+  showToast('⏳ Sincronizando...');
+  try {
+    const src = await (await fetch(`${API}/sources`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({label,url}) })).json();
+    await fetch(`${API}/sources/${src.id}/sync`, { method:'POST' });
+    document.getElementById('sourceLabel').value = '';
+    document.getElementById('sourceUrl').value = '';
+    showToast('✅ Sincronizado!');
+    await loadSources(); await loadData();
+  } catch { showToast('❌ Erro ao sincronizar'); }
+}
+
+async function syncSource(id) {
+  showToast('⏳ Sincronizando...');
+  try {
+    const d = await (await fetch(`${API}/sources/${id}/sync`, { method:'POST' })).json();
+    showToast(`✅ ${d.total} canais, ${d.categories} categorias`);
+    await loadSources(); await loadData();
+  } catch { showToast('❌ Erro'); }
+}
+
+async function deleteSource(id) {
+  if (!confirm('Remover esta fonte e todos os seus canais?')) return;
+  await fetch(`${API}/sources/${id}`, { method:'DELETE' });
+  showToast('🗑️ Removida'); await loadSources(); await loadData();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function h(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function js(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+</script>
+</body>
+</html>
