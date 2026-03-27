@@ -559,15 +559,45 @@ async function syncSource(id) {
   if (!source) return;
 
   try {
-    // Busca M3U via proxy serverless (evita CORS)
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(source.url)}`;
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const content = await res.text();
+    let content = '';
+
+    // Tenta via proxy (produção na Vercel)
+    try {
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(source.url)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error(`Proxy: HTTP ${res.status} ${errBody}`);
+      }
+      content = await res.text();
+      // Verifica se o conteúdo não é uma resposta de erro JSON
+      if (content.startsWith('{') && content.includes('"error"')) {
+        throw new Error('Proxy retornou JSON de erro: ' + content);
+      }
+    } catch (proxyErr) {
+      console.warn('[proxy] Falhou, tentando fetch direto:', proxyErr.message);
+      // Fallback: fetch direto (funciona se CORS permitir, ex: GitHub raw)
+      try {
+        const directRes = await fetch(source.url);
+        if (!directRes.ok) throw new Error(`HTTP ${directRes.status}`);
+        content = await directRes.text();
+      } catch (directErr) {
+        throw new Error(`Proxy e fetch direto falharam. Proxy: ${proxyErr.message}. Direto: ${directErr.message}`);
+      }
+    }
+
+    if (!content || content.length < 10) {
+      showToast('⚠️ Conteúdo vazio retornado');
+      return;
+    }
 
     // Parse client-side
     const parsed = parseM3U(content);
-    if (!parsed.length) { showToast('⚠️ Nenhum canal encontrado na playlist'); return; }
+    if (!parsed.length) {
+      showToast('⚠️ Nenhum canal encontrado na playlist');
+      console.warn('Conteúdo recebido (primeiros 500 chars):', content.substring(0, 500));
+      return;
+    }
 
     // Remove canais antigos desta fonte
     let stored = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id);
@@ -595,12 +625,12 @@ async function syncSource(id) {
 
     // Conta categorias únicas
     const catCount = new Set(parsed.map(c => c.groupTitle)).size;
-    showToast(`✅ ${parsed.length} canais, ${catCount} categorias`);
+    showToast(`✅ ${parsed.length} canais em ${catCount} categorias`);
     loadSources();
     loadData();
   } catch(e) {
     console.error('Erro ao sincronizar:', e);
-    showToast('❌ Erro ao sincronizar: ' + e.message);
+    showToast('❌ ' + e.message);
   }
 }
 
