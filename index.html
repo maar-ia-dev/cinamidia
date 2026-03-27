@@ -1550,11 +1550,18 @@
       const isLocalFile = window.location.protocol === 'file:';
       const url = isLocalFile ? `./${filename}` : window.location.origin + window.location.pathname.replace('index.html', '') + filename;
 
+      // PREVENÇÃO DE DUPLICIDADE: Verifica se essa URL já existe
+      const currentSources = await getStored(STORAGE_KEYS.sources);
+      if (currentSources.some(s => s.url === url)) {
+         console.log(`[AutoSetup] Lista ${filename} já existe. Pulando.`);
+         return;
+      }
+
       showToast(`⏳ Sincronizando ${filename}...`);
       try {
-        const newId = sources.length ? Math.max(...sources.map(s => s.id)) + 1 : 1;
-        sources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });
-        await setStored(STORAGE_KEYS.sources, sources);
+        const newId = currentSources.length ? Math.max(0, ...currentSources.map(s => s.id)) + 1 : 1;
+        currentSources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });
+        await setStored(STORAGE_KEYS.sources, currentSources);
         await syncSource(newId);
       } catch (e) { showToast('❌ ' + e.message); }
     }
