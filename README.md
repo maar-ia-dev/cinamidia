@@ -7,7 +7,8 @@ Interface IPTV moderna, rápida e otimizada para o uso em Smart TVs e Navegadore
 - **Storage**: IndexedDB (via `idb-keyval`) para persistência de canais e fontes.
 - **Protocolos**:
   - **MPEG-DASH (.mpd)**: Via Senza Shaka Player (TV) ou Shaka Player do Google (Web).
-  - **HLS (.m3u8/TS)**: Via Hls.js com suporte a modo Foreground na Senza.
+  - **HLS (.m3u8)**: Via Hls.js no navegador comum, com proxy reescrevendo playlists filhas.
+  - **MPEG-TS (.ts)**: Tratado como legado e sem caminho suportado no Senza.
 - **Backend**: API de Proxy Serverless (Vercel) para contornar CORS e Mixed Content.
 
 ## 📺 Funcionalidades Principais

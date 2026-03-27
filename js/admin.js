@@ -56,7 +56,7 @@ function updateXtreamPreview() {
   const host = document.getElementById('xtreamHost')?.value.trim().replace(/\/+$/, '');
   const user = document.getElementById('xtreamUser')?.value.trim();
   const pass = document.getElementById('xtreamPass')?.value.trim();
-  const output = document.getElementById('xtreamOutput')?.value || 'ts';
+  const output = document.getElementById('xtreamOutput')?.value || 'hls';
   const preview = document.getElementById('xtreamPreview');
   if (!preview) return;
   if (host && user && pass) {
@@ -84,6 +84,7 @@ async function addSource() {
   if (activeTab === 'xtream') {
     label = document.getElementById('xtreamLabel').value.trim();
     url = buildXtreamUrl();
+    const output = document.getElementById('xtreamOutput').value;
     if (!label) { showToast('⚠️ Preencha o nome da fonte'); return; }
     if (!url) { showToast('⚠️ Preencha servidor, usuário e senha'); return; }
   } else {

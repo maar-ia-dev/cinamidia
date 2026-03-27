@@ -114,6 +114,7 @@
           <label>URL da Playlist M3U</label>
           <input type="url" id="sourceUrl" placeholder="https://raw.githubusercontent.com/..." />
         </div>
+        <span class="sub-label">No Senza, priorize streams MPEG-DASH com fMP4/AAC. Xtream HLS/TS roda apenas como fallback de navegador.</span>
       </div>
 
       <!-- TAB: XTREAM CODES -->
@@ -138,8 +139,8 @@
           <div class="form-group">
             <label>Saída</label>
             <select id="xtreamOutput" class="admin-select">
-              <option value="ts">MPEGTS (.ts)</option>
-              <option value="hls" selected>HLS (.m3u8)</option>
+              <option value="hls" selected>HLS (.m3u8) - fallback web</option>
+              <option value="ts">MPEG-TS (.ts) - legado</option>
             </select>
           </div>
         </div>
