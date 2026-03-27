@@ -77,6 +77,7 @@ async function loadChannel(ch) {
 
         await senzaPlayer.load(streamUrl);
         video.play().catch(e => console.error('[Video] Play Error', e));
+        showToast(`📡 Senza SDK: ${isDASH ? 'DASH' : 'HLS'} Mode (Optimized)`);
         return;
       } catch (e) {
         console.error('[SenzaPlayer] Load failed', e.message);

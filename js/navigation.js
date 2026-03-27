@@ -120,8 +120,20 @@ function handleKey(e) {
   if (NAV.zone === 'categories') {
     const chips = [...document.querySelectorAll('.cat-item')];
     switch (e.key) {
-      case 'ArrowUp': NAV.catIdx = Math.max(0, NAV.catIdx - 1); break;
-      case 'ArrowDown': NAV.catIdx = Math.min(chips.length - 1, NAV.catIdx + 1); break;
+      case 'ArrowUp': 
+        NAV.catIdx = Math.max(0, NAV.catIdx - 1); 
+        break;
+      case 'ArrowDown': 
+        if (NAV.catIdx < chips.length - 1) {
+          NAV.catIdx++;
+        } else {
+          // Chegou no fim das categorias, vai para o rodapé (engrenagem)
+          NAV.zone = 'sidebar-footer';
+          updateCatFocus(chips);
+          updateFooterFocus();
+          return;
+        }
+        break;
       case 'ArrowRight':
         NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
         updateFocus(); return;
@@ -133,6 +145,28 @@ function handleKey(e) {
       default: return;
     }
     updateCatFocus(chips);
+    return;
+  }
+
+  if (NAV.zone === 'sidebar-footer') {
+    switch (e.key) {
+       case 'ArrowUp':
+         NAV.zone = 'categories';
+         NAV.catIdx = document.querySelectorAll('.cat-item').length - 1;
+         updateFooterFocus();
+         updateCatFocus();
+         break;
+       case 'ArrowRight':
+         NAV.zone = 'grid'; NAV.rowIdx = gridRows.length - 1; NAV.colIdx = 0;
+         updateFooterFocus();
+         updateFocus();
+         break;
+       case 'Enter': case 'OK':
+         toggleAdmin();
+         break;
+       case 'm': case 'M': case 'ContextMenu':
+         toggleAdmin(); return;
+    }
     return;
   }
 
@@ -177,16 +211,22 @@ function handleKey(e) {
       toggleAdmin(); return;
     default: return;
   }
-  updateFocus();
+  refreshNavFocus();
 }
 
 function clearFocus() {
-  document.querySelectorAll('.card.focused').forEach(c => c.classList.remove('focused'));
+  document.querySelectorAll('.card.focused, .cat-item.focused, .admin-toggle.focused')
+    .forEach(c => c.classList.remove('focused'));
+}
+
+function refreshNavFocus() {
+  clearFocus();
+  if (NAV.zone === 'grid') updateFocus();
+  else if (NAV.zone === 'categories') updateCatFocus();
+  else if (NAV.zone === 'sidebar-footer') updateFooterFocus();
 }
 
 function updateFocus() {
-  clearFocus();
-  document.querySelectorAll('.cat-item.focused').forEach(c => c.classList.remove('focused'));
   const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
   if (card) {
     card.classList.add('focused');
@@ -198,9 +238,12 @@ function updateFocus() {
 
 function updateCatFocus(chips) {
   if (!chips) chips = [...document.querySelectorAll('.cat-item')];
-  chips.forEach(c => c.classList.remove('focused'));
   if (chips[NAV.catIdx]) {
     chips[NAV.catIdx].classList.add('focused');
     chips[NAV.catIdx].scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
   }
+}
+
+function updateFooterFocus() {
+  document.querySelector('.admin-toggle')?.classList.add('focused');
 }

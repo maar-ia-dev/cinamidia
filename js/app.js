@@ -93,7 +93,7 @@ function selectCategory(id) {
   NAV.rowIdx = 0; NAV.colIdx = 0;
   renderCatBar();
   renderContent();
-  updateFocus();
+  refreshNavFocus();
 }
 
 function getCardHTML(ri, ci, ch) {
@@ -187,5 +187,5 @@ function renderContent() {
 
   NAV.rowIdx = Math.min(NAV.rowIdx, gridRows.length - 1);
   NAV.colIdx = Math.min(NAV.colIdx, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
-  updateFocus();
+  refreshNavFocus();
 }

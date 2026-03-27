@@ -81,7 +81,7 @@ body {
   align-items: center; justify-content: center; color: var(--muted);
   transition: all .2s; font-size: 20px;
 }
-.admin-toggle:hover, .admin-toggle:focus { color: var(--accent); border-color: var(--accent); box-shadow: var(--focus-ring); outline: none; }
+.admin-toggle:hover, .admin-toggle:focus, .admin-toggle.focused { color: var(--accent); border-color: var(--accent); box-shadow: var(--focus-ring); outline: none; transform: scale(1.1); }
 
 /* ═══ CONTENT AREA (rows horizontais estilo Netflix) ═══════════════════════ */
 .content {
