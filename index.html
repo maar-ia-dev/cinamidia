@@ -7,6 +7,7 @@
   <title>CinaMídia</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/shaka-player/dist/shaka-player.compiled.js"></script>
   <script src="https://senza-sdk.streaming.synamedia.com/latest/bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -1268,21 +1269,19 @@
 
       // Se estiver no Senza...
       if (senzaReady && typeof senza !== 'undefined') {
-        if (isDASH && senza.shaka && senza.shaka.Player) {
-          // DASH: Usa o SDK deles (SenzaShakaPlayer) para performance máxima
+        const SenzaPlayerClass = (senza.shaka && senza.shaka.Player) || (window.shaka && window.shaka.Player);
+        if (isDASH && SenzaPlayerClass) {
+          // DASH: Usa o SDK deles para performance máxima na TV
           try {
-            const PlayerClass = senza.shaka.Player;
-            senzaPlayer = new PlayerClass(video);
+            senzaPlayer = new SenzaPlayerClass(video);
             await senzaPlayer.load(streamUrl);
-            video.muted = false;
-            video.volume = 1;
+            video.volume = 1; video.muted = false;
             await video.play();
             showToast('📡 Senza SDK: DASH Mode');
             return;
-          } catch (err) { console.error(err); }
+          } catch (err) { }
         } else {
           // HLS/TS: O Remote Player do Senza NÃO suporta. 
-          // Precisamos parar o player remoto para o áudio do browser (local) ser liberado para a TV.
           try {
             await senza.remotePlayer.stop();
             await senza.remotePlayer.unload();
@@ -1292,8 +1291,15 @@
         }
       }
 
-      // Fallback para Browser Player (Hls.js ou Nativo)
-      if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
+      // Fallback para Browser Player (Google Shaka, Hls.js ou Nativo)
+      if (isDASH && typeof shaka !== 'undefined' && shaka.Player) {
+        const player = new shaka.Player(video);
+        senzaPlayer = player;
+        player.load(streamUrl).then(() => {
+          video.volume = 1; video.muted = false;
+          video.play().catch(() => showPlayerError());
+        }).catch(() => showPlayerError());
+      } else if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
         video.volume = 1; video.muted = false;
         const hls = new Hls({ enableWorker: true });
         video._hlsInstance = hls;
