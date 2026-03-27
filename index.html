@@ -808,7 +808,6 @@
 
   <style>
     .confirm-modal { position: fixed; inset: 0; z-index: 20000; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
-<<<<<<< HEAD
     .confirm-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: min(400px, 90vw); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
     #confirmModal button:focus { 
       outline: 4px solid #fff !important; 
@@ -817,10 +816,6 @@
       color: #000;
       transform: scale(1.05);
     }
-=======
-    .confirm-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: min(400px, 90vw); text-align: center; }
-    #confirmModal button:focus { outline: 3px solid var(--accent); outline-offset: 1px; box-shadow: 0 0 15px var(--accent); }
->>>>>>> e14b588eac78e334489c47f919cd53cbb2bdf6f1
 
     .sync-progress { width: 100%; height: 6px; background: var(--surface2); border-radius: 3px; margin-top: 16px; overflow: hidden; display: none; }
     .sync-progress.active { display: block; }
@@ -1160,15 +1155,10 @@
              e.preventDefault();
              confFocusables[cIdx === 0 ? 1 : 0].focus();
              break;
-<<<<<<< HEAD
            case 'Enter': case 'OK': case ' ': case '6':
              console.log('[Confirm] OK Clicked on:', document.activeElement.id);
+             document.activeElement.click(); // Garante o clique no botão focado
              return;
-=======
-           case 'Enter': case 'OK':
-             e.preventDefault(); confFocusables[cIdx].click();
-             break;
->>>>>>> e14b588eac78e334489c47f919cd53cbb2bdf6f1
            case 'Escape': case 'Backspace': case 'GoBack':
              e.preventDefault(); document.getElementById('confirmNo').click();
              break;
