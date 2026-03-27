@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://cinamidia-api.vercel.app/api/:path*"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -19,4 +13,3 @@
     }
   ]
 }
-

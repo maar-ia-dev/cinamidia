@@ -249,9 +249,36 @@
 </div>
 
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-// Em produção, defina window.CINAMIDIA_API antes deste script, ou use env inject da Vercel
-const API = window.CINAMIDIA_API || '/api';
+// ─── CLIENT-SIDE STORAGE ──────────────────────────────────────────────────────
+const STORAGE_KEYS = { sources: 'cinamidia_sources', channels: 'cinamidia_channels' };
+
+function getStored(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
+}
+function setStored(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ─── M3U PARSER (client-side) ─────────────────────────────────────────────────
+function parseM3U(content) {
+  const lines = content.split('\n').map(l => l.trim());
+  const result = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.startsWith('#EXTINF')) continue;
+    const urlLine = lines[i + 1];
+    if (!urlLine || urlLine.startsWith('#')) continue;
+
+    const name       = line.split(',').slice(1).join(',').trim();
+    const logo       = line.match(/tvg-logo="([^"]*)"/)?.[1] ?? '';
+    const groupTitle = line.match(/group-title="([^"]*)"/)?.[1] ?? 'Sem categoria';
+    const tvgId      = line.match(/tvg-id="([^"]*)"/)?.[1] ?? '';
+    const tvgName    = line.match(/tvg-name="([^"]*)"/)?.[1] ?? name;
+
+    result.push({ name, logo, groupTitle, tvgId, tvgName, url: urlLine });
+  }
+  return result;
+}
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let allChannels = [];
@@ -265,22 +292,16 @@ let currentGridChannels = [];
 // ─── SENZA INIT ───────────────────────────────────────────────────────────────
 async function initSenza() {
   try {
-    // bundle.js expõe o namespace global `senza`
     await senza.init();
     senzaReady = true;
     document.getElementById('senzaBadge').style.display = 'inline';
-
-    // Reagir a mudanças de estado foreground ↔ background
     senza.lifecycle.addEventListener('statechange', () => {
       const bg = senza.lifecycle.state === senza.lifecycle.UiState.BACKGROUND;
       document.body.classList.toggle('background-mode', bg);
     });
-
-    // Sinaliza que a UI terminou de carregar
     senza.uiReady();
     console.info('[Senza] Iniciado — Cloud Connector ativo');
   } catch (e) {
-    // Rodando em browser normal (Vercel preview, desktop) — tudo ok
     console.info('[Senza] Modo browser normal');
   }
 }
@@ -288,24 +309,23 @@ async function initSenza() {
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   await initSenza();
-  await loadData();
+  loadData();
   setupRemoteNav();
 });
 
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-async function loadData() {
-  try {
-    const [chRes, catRes] = await Promise.all([
-      fetch(`${API}/channels?page=1`),
-      fetch(`${API}/categories`)
-    ]);
-    allChannels = await chRes.json();
-    categories  = await catRes.json();
-    renderSidebar();
-    renderGrid(allChannels);
-  } catch(e) {
-    console.warn('API indisponível:', e.message);
-  }
+// ─── DATA (localStorage) ─────────────────────────────────────────────────────
+function loadData() {
+  allChannels = getStored(STORAGE_KEYS.channels);
+  // Derivar categorias dos canais
+  const catMap = {};
+  allChannels.forEach(ch => {
+    const g = ch.group_title || 'Outros';
+    if (!catMap[g]) catMap[g] = { id: g, name: g, channel_count: 0 };
+    catMap[g].channel_count++;
+  });
+  categories = Object.values(catMap).sort((a, b) => a.name.localeCompare(b.name));
+  renderSidebar();
+  renderGrid(allChannels);
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -316,7 +336,7 @@ function renderSidebar() {
       <span class="cat-count">${allChannels.length}</span>
     </div>
     ${categories.map(c => `
-      <div class="cat-item ${activeCategory===c.id?'active':''}" onclick="selectCategory(${c.id})">
+      <div class="cat-item ${activeCategory===c.id?'active':''}" onclick="selectCategory('${js(c.id)}')">
         <span class="cat-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${h(c.name)}">${h(c.name)}</span>
         <span class="cat-count">${c.channel_count||0}</span>
       </div>
@@ -327,7 +347,7 @@ function renderSidebar() {
 function selectCategory(id) {
   activeCategory = id;
   renderSidebar();
-  renderGrid(id ? allChannels.filter(c => c.category_id === id) : allChannels);
+  renderGrid(id ? allChannels.filter(c => (c.group_title||'Outros') === id) : allChannels);
 }
 
 // ─── GRID ─────────────────────────────────────────────────────────────────────
@@ -336,7 +356,7 @@ function renderGrid(channels) {
   focusedCardIndex = 0;
   const main = document.getElementById('mainContent');
   if (!channels.length) {
-    main.innerHTML = `<div class="empty"><div class="big">📺</div><p>Nenhum canal encontrado.</p></div>`;
+    main.innerHTML = `<div class="empty"><div class="big">📺</div><p>Nenhum canal encontrado.<br/>Clique no ⚙️ para adicionar uma playlist M3U.</p></div>`;
     return;
   }
   const grouped = {};
@@ -373,7 +393,7 @@ function noLogoHtml(name) {
 function handleSearch(q) {
   renderGrid(q
     ? allChannels.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))
-    : (activeCategory ? allChannels.filter(c => c.category_id === activeCategory) : allChannels)
+    : (activeCategory ? allChannels.filter(c => (c.group_title||'Outros') === activeCategory) : allChannels)
   );
 }
 
@@ -390,31 +410,26 @@ async function openPlayer(channelId) {
   logo.style.display = ch.logo ? 'block' : 'none';
   document.getElementById('playerError').classList.remove('show');
 
-  // Destrói instância anterior
   if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
 
   const video = document.getElementById('videoEl');
   video.src = '';
+  if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
 
   if (senzaReady && typeof senza !== 'undefined' && senza.SenzaShakaPlayer) {
-    // ── MODO SENZA ────────────────────────────────────────────────────────────
-    // SenzaShakaPlayer gerencia automaticamente local (browser) e remote (Cloud Connector)
     try {
       senzaPlayer = new senza.SenzaShakaPlayer(video);
       await senzaPlayer.load(ch.stream_url);
       await video.play();
-      // Manda vídeo para o Cloud Connector → UI fica em foreground para controles
       await senza.lifecycle.moveToBackground();
     } catch(err) {
       console.error('[SenzaShakaPlayer]', err);
       showPlayerError();
     }
   } else {
-    // ── MODO BROWSER (Vercel preview / desktop) ───────────────────────────────
     const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u');
 
-    if (isHLS && Hls.isSupported()) {
-      // Chrome/Firefox: usa hls.js para streams HLS
+    if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       video._hlsInstance = hls;
       hls.loadSource(ch.stream_url);
@@ -422,11 +437,9 @@ async function openPlayer(channelId) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => showPlayerError()));
       hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari: suporte nativo a HLS
       video.src = ch.stream_url;
       video.play().catch(() => showPlayerError());
     } else {
-      // Outros formatos (MP4, TS direto, etc.)
       video.src = ch.stream_url;
       video.onerror = () => showPlayerError();
       video.play().catch(() => showPlayerError());
@@ -442,10 +455,8 @@ async function closePlayer() {
   document.getElementById('playerModal').classList.remove('open');
   const video = document.getElementById('videoEl');
   video.pause(); video.src = '';
-  // Destroi instância hls.js se existir
   if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
   if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
-  // Volta a foreground ao fechar o player
   if (senzaReady && typeof senza !== 'undefined') {
     try { await senza.lifecycle.moveToForeground(); } catch(e) {}
   }
@@ -457,7 +468,6 @@ function setupRemoteNav() {
     const playerOpen = document.getElementById('playerModal').classList.contains('open');
 
     if (playerOpen) {
-      // Botão BACK / Escape → fecha player (padrão Senza: back = Escape)
       if (['Escape','Backspace','GoBack'].includes(e.key)) {
         e.preventDefault();
         await closePlayer();
@@ -468,7 +478,6 @@ function setupRemoteNav() {
     const cards = [...document.querySelectorAll('.channel-card')];
     if (!cards.length) return;
 
-    // Calcula colunas dinamicamente
     const grid = document.querySelector('.channel-grid');
     const cols = grid ? Math.round(grid.offsetWidth / (150 + 12)) : 5;
 
@@ -491,25 +500,26 @@ function setupRemoteNav() {
   });
 }
 
-// ─── ADMIN ────────────────────────────────────────────────────────────────────
+// ─── ADMIN (localStorage) ─────────────────────────────────────────────────────
 let sources = [];
 
 async function toggleAdmin() {
   const panel = document.getElementById('adminPanel');
   panel.classList.toggle('open');
-  if (panel.classList.contains('open')) await loadSources();
+  if (panel.classList.contains('open')) loadSources();
 }
 
-async function loadSources() {
-  try { sources = await (await fetch(`${API}/sources`)).json(); renderSources(); } catch {}
+function loadSources() {
+  sources = getStored(STORAGE_KEYS.sources);
+  renderSources();
 }
 
 function renderSources() {
   document.getElementById('sourceList').innerHTML = sources.map(s => `
     <div class="source-item">
       <div class="source-item-info">
-        <span class="source-item-label"><span class="status-dot ${s.last_sync_at?'synced':''}"></span>${h(s.label)}</span>
-        <span class="source-item-meta">${s.channel_count?`${s.channel_count} canais`:'Não sincronizado'}${s.last_sync_at?` • ${new Date(s.last_sync_at).toLocaleDateString('pt-BR')}`:''}</span>
+        <span class="source-item-label"><span class="status-dot ${s.lastSyncAt?'synced':''}"></span>${h(s.label)}</span>
+        <span class="source-item-meta">${s.channelCount?`${s.channelCount} canais`:'Não sincronizado'}${s.lastSyncAt?` • ${new Date(s.lastSyncAt).toLocaleDateString('pt-BR')}`:''}</span>
       </div>
       <div class="source-actions">
         <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="syncSource(${s.id})">↺ Sync</button>
@@ -524,37 +534,96 @@ async function addSource() {
   const url   = document.getElementById('sourceUrl').value.trim();
   if (!label || !url) { showToast('⚠️ Preencha todos os campos'); return; }
   showToast('⏳ Sincronizando...');
+
   try {
-    const src = await (await fetch(`${API}/sources`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({label,url}) })).json();
-    await fetch(`${API}/sources/${src.id}/sync`, { method:'POST' });
+    // Cria a fonte com ID incremental
+    const newId = sources.length ? Math.max(...sources.map(s => s.id)) + 1 : 1;
+    const newSource = { id: newId, label, url, channelCount: 0, lastSyncAt: null };
+    sources.push(newSource);
+    setStored(STORAGE_KEYS.sources, sources);
+
+    // Sincroniza imediatamente
+    await syncSource(newId);
+
     document.getElementById('sourceLabel').value = '';
     document.getElementById('sourceUrl').value = '';
-    showToast('✅ Sincronizado!');
-    await loadSources(); await loadData();
-  } catch { showToast('❌ Erro ao sincronizar'); }
+  } catch(e) {
+    console.error('Erro ao adicionar fonte:', e);
+    showToast('❌ Erro ao sincronizar');
+  }
 }
 
 async function syncSource(id) {
   showToast('⏳ Sincronizando...');
+  const source = sources.find(s => s.id === id);
+  if (!source) return;
+
   try {
-    const d = await (await fetch(`${API}/sources/${id}/sync`, { method:'POST' })).json();
-    showToast(`✅ ${d.total} canais, ${d.categories} categorias`);
-    await loadSources(); await loadData();
-  } catch { showToast('❌ Erro'); }
+    // Busca M3U via proxy serverless (evita CORS)
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(source.url)}`;
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const content = await res.text();
+
+    // Parse client-side
+    const parsed = parseM3U(content);
+    if (!parsed.length) { showToast('⚠️ Nenhum canal encontrado na playlist'); return; }
+
+    // Remove canais antigos desta fonte
+    let stored = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id);
+
+    // Gera IDs e adiciona novos canais
+    let nextId = stored.length ? Math.max(...stored.map(c => c.id)) + 1 : 1;
+    const newChannels = parsed.map(ch => ({
+      id: nextId++,
+      name: ch.name,
+      logo: ch.logo || null,
+      group_title: ch.groupTitle,
+      stream_url: ch.url,
+      tvg_id: ch.tvgId || null,
+      tvg_name: ch.tvgName || null,
+      source_id: id,
+    }));
+
+    stored = stored.concat(newChannels);
+    setStored(STORAGE_KEYS.channels, stored);
+
+    // Atualiza metadados da fonte
+    source.channelCount = parsed.length;
+    source.lastSyncAt = new Date().toISOString();
+    setStored(STORAGE_KEYS.sources, sources);
+
+    // Conta categorias únicas
+    const catCount = new Set(parsed.map(c => c.groupTitle)).size;
+    showToast(`✅ ${parsed.length} canais, ${catCount} categorias`);
+    loadSources();
+    loadData();
+  } catch(e) {
+    console.error('Erro ao sincronizar:', e);
+    showToast('❌ Erro ao sincronizar: ' + e.message);
+  }
 }
 
 async function deleteSource(id) {
   if (!confirm('Remover esta fonte e todos os seus canais?')) return;
-  await fetch(`${API}/sources/${id}`, { method:'DELETE' });
-  showToast('🗑️ Removida'); await loadSources(); await loadData();
+  sources = sources.filter(s => s.id !== id);
+  setStored(STORAGE_KEYS.sources, sources);
+
+  const channels = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id);
+  setStored(STORAGE_KEYS.channels, channels);
+
+  showToast('🗑️ Removida');
+  loadSources();
+  loadData();
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 function showToast(msg) {
+  document.querySelectorAll('.toast').forEach(t => t.remove()); // remove toasts antigos
   const el = document.createElement('div');
   el.className = 'toast'; el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+  setTimeout(() => el.remove(), 3500);
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
