@@ -50,7 +50,7 @@ body {
 
 .cat-list {
   flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
-  display: flex; flex-direction: column; gap: 4px; padding: 0 24px;
+  display: flex; flex-direction: column; gap: 4px; padding: 20px 24px;
 }
 .cat-list::-webkit-scrollbar { display: none; }
 

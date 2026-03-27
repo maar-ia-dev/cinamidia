@@ -127,15 +127,12 @@ function handleKey(e) {
         if (NAV.catIdx < chips.length - 1) {
           NAV.catIdx++;
         } else {
-          // Chegou no fim das categorias, vai para o rodapé (engrenagem)
           NAV.zone = 'sidebar-footer';
-          refreshNavFocus();
-          return;
         }
         break;
       case 'ArrowRight':
         NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
-        refreshNavFocus(); return;
+        break;
       case 'ArrowLeft': return;
       case 'Enter': case 'OK':
         chips[NAV.catIdx]?.click(); return;
@@ -143,105 +140,84 @@ function handleKey(e) {
         toggleAdmin(); return;
       default: return;
     }
-    updateCatFocus(chips);
-    return;
-  }
-
-  if (NAV.zone === 'sidebar-footer') {
+  } else if (NAV.zone === 'sidebar-footer') {
     switch (e.key) {
        case 'ArrowUp':
          NAV.zone = 'categories';
          NAV.catIdx = document.querySelectorAll('.cat-item').length - 1;
-         refreshNavFocus();
          break;
        case 'ArrowRight':
          NAV.zone = 'grid'; NAV.rowIdx = gridRows.length - 1; NAV.colIdx = 0;
-         refreshNavFocus();
          break;
        case 'Enter': case 'OK':
-         toggleAdmin();
-         break;
+         toggleAdmin(); return;
        case 'm': case 'M': case 'ContextMenu':
          toggleAdmin(); return;
     }
-    return;
-  }
-
-  // zone === 'grid'
-  switch (e.key) {
-    case 'ArrowRight':
-      NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
-      if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + 6 >= window.rowRenderCounts[NAV.rowIdx])) {
-        loadMoreCards(NAV.rowIdx);
-      }
-      break;
-    case 'ArrowLeft':
-      if (NAV.colIdx > 0) {
-        NAV.colIdx--;
-      } else {
-        NAV.zone = 'categories';
-        refreshNavFocus();
+  } else {
+    // zone === 'grid'
+    switch (e.key) {
+      case 'ArrowRight':
+        NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
+        if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + 6 >= window.rowRenderCounts[NAV.rowIdx])) {
+          loadMoreCards(NAV.rowIdx);
+        }
+        break;
+      case 'ArrowLeft':
+        if (NAV.colIdx > 0) {
+          NAV.colIdx--;
+        } else {
+          NAV.zone = 'categories';
+        }
+        break;
+      case 'ArrowDown':
+        if (NAV.rowIdx < gridRows.length - 1) {
+          NAV.rowIdx++;
+          NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+        }
+        break;
+      case 'ArrowUp':
+        if (NAV.rowIdx > 0) {
+          NAV.rowIdx--;
+          NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+        }
+        break;
+      case 'Enter': case 'OK':
+        const ch = gridRows[NAV.rowIdx]?.channels[NAV.colIdx];
+        if (ch) openPlayer(ch.id);
         return;
-      }
-      break;
-    case 'ArrowDown':
-      if (NAV.rowIdx < gridRows.length - 1) {
-        NAV.rowIdx++;
-        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
-      }
-      break;
-    case 'ArrowUp':
-      if (NAV.rowIdx > 0) {
-        NAV.rowIdx--;
-        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
-      }
-      break;
-    case 'Enter': case 'OK':
-      const ch = gridRows[NAV.rowIdx]?.channels[NAV.colIdx];
-      if (ch) openPlayer(ch.id);
-      return;
-    case 'Escape': case 'GoBack': case 'Backspace':
-      if (activeCategory) { selectCategory(null); return; }
-      break;
-    case 'm': case 'M': case 'ContextMenu':
-      toggleAdmin(); return;
-    default: return;
+      case 'Escape': case 'GoBack': case 'Backspace':
+        if (activeCategory) { selectCategory(null); return; }
+        break;
+      case 'm': case 'M': case 'ContextMenu':
+        toggleAdmin(); return;
+      default: return;
+    }
   }
   refreshNavFocus();
 }
 
 function clearFocus() {
-  document.querySelectorAll('.card.focused, .cat-item.focused, .admin-toggle.focused')
-    .forEach(c => c.classList.remove('focused'));
+  document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
 }
 
 function refreshNavFocus() {
-  if (NAV.zone === 'grid') updateFocus();
-  else if (NAV.zone === 'categories') updateCatFocus();
-  else if (NAV.zone === 'sidebar-footer') updateFooterFocus();
-}
-
-function updateFocus() {
   clearFocus();
-  const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
-  if (card) {
-    card.classList.add('focused');
-    card.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    const row = card.closest('.row');
-    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (NAV.zone === 'grid') {
+    const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
+    if (card) {
+      card.classList.add('focused');
+      card.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      const row = card.closest('.row');
+      if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } else if (NAV.zone === 'categories') {
+    const chips = [...document.querySelectorAll('.cat-item')];
+    if (chips[NAV.catIdx]) {
+      chips[NAV.catIdx].classList.add('focused');
+      chips[NAV.catIdx].scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
+    }
+  } else if (NAV.zone === 'sidebar-footer') {
+    document.querySelector('.admin-toggle')?.classList.add('focused');
   }
-}
-
-function updateCatFocus(chips) {
-  clearFocus();
-  if (!chips) chips = [...document.querySelectorAll('.cat-item')];
-  if (chips[NAV.catIdx]) {
-    chips[NAV.catIdx].classList.add('focused');
-    chips[NAV.catIdx].scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
-  }
-}
-
-function updateFooterFocus() {
-  clearFocus();
-  document.querySelector('.admin-toggle')?.classList.add('focused');
 }
