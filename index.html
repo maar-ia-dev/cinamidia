@@ -1244,41 +1244,57 @@
       video.pause();
       video.removeAttribute('src');
       if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
-      if (senzaPlayer) { try { senzaPlayer.destroy(); } catch (e) { } senzaPlayer = null; }
+      if (senzaPlayer) { try { (senzaPlayer.destroy ? senzaPlayer.destroy() : null); } catch (e) { } senzaPlayer = null; }
 
-      if (senzaReady && senza.SenzaShakaPlayer) {
-        try {
-          video.muted = false;
-          senzaPlayer = new senza.SenzaShakaPlayer(video);
-          senzaPlayer.load(ch.stream_url).then(() => {
-            video.volume = 1;
+      const isDASH = ch.stream_url.includes('.mpd');
+      const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u') || ch.stream_url.includes('output=hls') || ch.stream_url.includes('output=ts');
+
+      // Se estiver no Senza...
+      if (senzaReady && typeof senza !== 'undefined') {
+        if (isDASH && senza.shaka && senza.shaka.Player) {
+          // DASH: Usa o SDK deles (SenzaShakaPlayer) para performance máxima
+          try {
+            const PlayerClass = senza.shaka.Player;
+            senzaPlayer = new PlayerClass(video);
+            await senzaPlayer.load(ch.stream_url);
             video.muted = false;
-            video.play();
-          }).catch(() => showPlayerError());
-        } catch (err) { showPlayerError(); }
-      } else {
-        const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u');
-        if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
-          video.volume = 1; video.muted = false;
-          const hls = new Hls({ enableWorker: true });
-          video._hlsInstance = hls;
-          hls.loadSource(ch.stream_url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            video.volume = 1; video.muted = false;
-            video.play().catch(() => showPlayerError());
-          });
-          hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = ch.stream_url;
-          video.volume = 1; video.muted = false;
-          video.play().catch(() => showPlayerError());
+            video.volume = 1;
+            await video.play();
+            showToast('📡 Senza SDK: DASH Mode');
+            return;
+          } catch (err) { console.error(err); }
         } else {
-          video.src = ch.stream_url;
-          video.volume = 1; video.muted = false;
-          video.onerror = () => showPlayerError();
-          video.play().catch(() => showPlayerError());
+          // HLS/TS: O Remote Player do Senza NÃO suporta. 
+          // Precisamos parar o player remoto para o áudio do browser (local) ser liberado para a TV.
+          try {
+            await senza.remotePlayer.stop();
+            await senza.remotePlayer.unload();
+            showToast('🌐 Senza SDK: Browser Fallback (HLS)');
+          } catch (e) { }
         }
+      }
+
+      // Fallback para Browser Player (Hls.js ou Nativo)
+      if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
+        video.volume = 1; video.muted = false;
+        const hls = new Hls({ enableWorker: true });
+        video._hlsInstance = hls;
+        hls.loadSource(ch.stream_url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.volume = 1; video.muted = false;
+          video.play().catch(() => showPlayerError());
+        });
+        hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = ch.stream_url;
+        video.volume = 1; video.muted = false;
+        video.play().catch(() => showPlayerError());
+      } else {
+        video.src = ch.stream_url;
+        video.volume = 1; video.muted = false;
+        video.onerror = () => showPlayerError();
+        video.play().catch(() => showPlayerError());
       }
     }
 
