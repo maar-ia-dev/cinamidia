@@ -1202,7 +1202,7 @@
       loadChannel(ch);
     }
 
-    function loadChannel(ch) {
+    async function loadChannel(ch) {
       const overlay = document.getElementById('playerOverlay');
       overlay.classList.add('open');
 
@@ -1214,7 +1214,7 @@
       showHud();
 
       if (senzaReady && typeof senza !== 'undefined') {
-        try { senza.lifecycle.moveToForeground(); } catch (e) { }
+        try { await senza.lifecycle.moveToForeground(); } catch (e) { }
       }
 
       // Cleanup previous
@@ -1226,35 +1226,44 @@
 
       if (senzaReady && senza.SenzaShakaPlayer) {
         try {
+          video.muted = false;
           senzaPlayer = new senza.SenzaShakaPlayer(video);
           senzaPlayer.load(ch.stream_url).then(() => {
+            video.volume = 1;
+            video.muted = false;
             video.play();
           }).catch(() => showPlayerError());
         } catch (err) { showPlayerError(); }
       } else {
         const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u');
         if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
+          video.volume = 1; video.muted = false;
           const hls = new Hls({ enableWorker: true });
           video._hlsInstance = hls;
           hls.loadSource(ch.stream_url);
           hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => showPlayerError()));
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.volume = 1; video.muted = false;
+            video.play().catch(() => showPlayerError());
+          });
           hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = ch.stream_url;
+          video.volume = 1; video.muted = false;
           video.play().catch(() => showPlayerError());
         } else {
           video.src = ch.stream_url;
+          video.volume = 1; video.muted = false;
           video.onerror = () => showPlayerError();
           video.play().catch(() => showPlayerError());
         }
       }
     }
 
-    function changeChannel(dir) {
+    async function changeChannel(dir) {
       if (!currentPlaylist.length) return;
       currentPlayingIndex = (currentPlayingIndex + dir + currentPlaylist.length) % currentPlaylist.length;
-      loadChannel(currentPlaylist[currentPlayingIndex]);
+      await loadChannel(currentPlaylist[currentPlayingIndex]);
     }
 
     function showHud() {
