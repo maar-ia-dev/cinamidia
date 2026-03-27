@@ -1562,6 +1562,10 @@
         const newId = currentSources.length ? Math.max(0, ...currentSources.map(s => s.id)) + 1 : 1;
         currentSources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });
         await setStored(STORAGE_KEYS.sources, currentSources);
+        
+        // CRITICAL: Atualiza o estado global para que syncSource encontre a fonte
+        sources = currentSources; 
+        
         await syncSource(newId);
       } catch (e) { showToast('❌ ' + e.message); }
     }
