@@ -329,7 +329,7 @@
         <label>Servidor (URL base)</label>
         <input type="url" id="xtreamHost" placeholder="http://servidor.com:8080"/>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;margin-bottom:16px">
         <div class="form-group" style="margin:0">
           <label>Usuário</label>
           <input type="text" id="xtreamUser" placeholder="usuario" autocomplete="off"/>
@@ -337,6 +337,13 @@
         <div class="form-group" style="margin:0">
           <label>Senha</label>
           <input type="password" id="xtreamPass" placeholder="senha" autocomplete="off"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Saída</label>
+          <select id="xtreamOutput" style="width:100%;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;cursor:pointer">
+            <option value="ts">MPEGTS (.ts)</option>
+            <option value="hls" selected>HLS (.m3u8)</option>
+          </select>
         </div>
       </div>
       <div style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.6">
@@ -459,7 +466,7 @@ window.addEventListener('load', async () => {
   setInterval(updateClock, 30000);
 
   // Setup Xtream Codes preview listeners
-  ['xtreamHost', 'xtreamUser', 'xtreamPass'].forEach(id => {
+  ['xtreamHost', 'xtreamUser', 'xtreamPass', 'xtreamOutput'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updateXtreamPreview);
   });
@@ -799,10 +806,11 @@ function updateXtreamPreview() {
   const host = document.getElementById('xtreamHost')?.value.trim().replace(/\/+$/, '');
   const user = document.getElementById('xtreamUser')?.value.trim();
   const pass = document.getElementById('xtreamPass')?.value.trim();
+  const output = document.getElementById('xtreamOutput')?.value || 'ts';
   const preview = document.getElementById('xtreamPreview');
   if (!preview) return;
   if (host && user && pass) {
-    preview.textContent = `${host}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=ts`;
+    preview.textContent = `${host}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=${output}`;
   } else {
     preview.textContent = 'Preencha os campos acima...';
   }
@@ -812,8 +820,9 @@ function buildXtreamUrl() {
   const host = document.getElementById('xtreamHost').value.trim().replace(/\/+$/, '');
   const user = document.getElementById('xtreamUser').value.trim();
   const pass = document.getElementById('xtreamPass').value.trim();
+  const output = document.getElementById('xtreamOutput').value;
   if (!host || !user || !pass) return null;
-  return `${host}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=ts`;
+  return `${host}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=${output}`;
 }
 
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
