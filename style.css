@@ -120,7 +120,7 @@ body {
 .row-scroll {
   display: flex;
   gap: 16px;
-  padding: 8px 48px 16px;
+  padding: 20px 48px 32px;
   overflow-x: auto;
   scroll-behavior: smooth;
   scrollbar-width: none;
