@@ -1293,16 +1293,25 @@
             await senzaPlayer.load(streamUrl);
             video.volume = 1; video.muted = false;
             await video.play();
-            showToast('📡 Senza SDK: DASH Mode');
+            showToast('📡 Senza SDK: DASH + Background Mode');
             return;
           } catch (err) { }
         } else {
           // HLS/TS: O Remote Player do Senza NÃO suporta. 
+          // Para HLS, OBRIGATORIAMENTE usamos o browser local (Foreground Mode).
           try {
             await senza.remotePlayer.stop();
             await senza.remotePlayer.unload();
             await senza.remotePlayer.detach(); 
-            showToast('🌐 Senza SDK: Browser Fallback (HLS)');
+            await senza.lifecycle.moveToForeground(); // Garante que a UI está visível e com som liberado
+            
+            // Força retomada do áudio se o browser bloqueou
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+               const ctx = new AudioCtx();
+               if (ctx.state === 'suspended') ctx.resume();
+            }
+            showToast('🌐 Senza SDK: HLS + Foreground Mode');
           } catch (e) { }
         }
       }
