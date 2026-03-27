@@ -1292,7 +1292,20 @@
             // Se for HLS, o SDK da Senza recomenda estar em Foreground para processar localmente
             if (!isDASH) await senza.lifecycle.moveToForeground();
             
+            // Força volume no hardware antes de começar
+            try { await senza.remotePlayer.setVolume(1.0); } catch (e) { }
+
             senzaPlayer = new SenzaPlayerClass(video);
+
+            // Adiciona listener de tracks para garantir áudio (visto no sample banner.js)
+            const trackHandler = () => {
+              try { if (senzaPlayer && senzaPlayer.getAudioLanguages) {
+                const langs = senzaPlayer.getAudioLanguages();
+                if (langs && langs.length > 0) senzaPlayer.selectAudioLanguage(langs[0]);
+              }} catch (e) { }
+            };
+            senza.remotePlayer.addEventListener("tracksupdate", trackHandler);
+            
             await senzaPlayer.load(streamUrl);
             video.volume = 1; video.muted = false;
             await video.play();
