@@ -248,3 +248,11 @@ function refreshNavFocus() {
     document.querySelector('.admin-toggle')?.classList.add('focused');
   }
 }
+
+function updateFocus() {
+  refreshNavFocus();
+}
+
+function updateCatFocus() {
+  refreshNavFocus();
+}

@@ -168,24 +168,95 @@ async function loadWithShaka(video, PlayerClass, streamUrl, useSenzaPlayer = fal
   await video.play();
 }
 
-function loadWithHls(video, streamUrl) {
-  const hls = new Hls({ enableWorker: true });
-  hls.loadSource(streamUrl);
-  hls.attachMedia(video);
-  hls.on(Hls.Events.MANIFEST_PARSED, () => {
-    video.play().catch(() => showPlayerError());
-  });
-  hls.on(Hls.Events.ERROR, (_event, data) => {
-    if (data?.fatal) showPlayerError();
-  });
-  video._hlsInstance = hls;
+function loadWithHls(video, streamUrls, options = {}) {
+  const urls = [...new Set((Array.isArray(streamUrls) ? streamUrls : [streamUrls]).filter(Boolean))];
+  let urlIndex = 0;
+
+  const start = () => {
+    const currentUrl = urls[urlIndex];
+    const hls = new Hls({
+      enableWorker: false,
+      lowLatencyMode: false,
+      ...(options.hlsConfig || {}),
+    });
+
+    video._hlsInstance = hls;
+    hls.loadSource(currentUrl);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, async () => {
+      try {
+        if (options.beforePlay) options.beforePlay();
+        await video.play();
+        if (options.onManifestParsed) options.onManifestParsed(currentUrl);
+      } catch (e) {
+        console.error('[HLS] play falhou:', e);
+        showPlayerError(options.playErrorMessage || PLAYER_ERROR_DEFAULT_HTML);
+      }
+    });
+
+    hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_event, data) => {
+      if (options.logPrefix) {
+        console.log(`${options.logPrefix} audio tracks:`, data?.audioTracks || []);
+      }
+    });
+
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (options.logPrefix) {
+        console.error(`${options.logPrefix} error:`, data);
+      }
+
+      if (!data?.fatal) return;
+
+      try {
+        hls.destroy();
+      } catch (e) { }
+
+      if (video._hlsInstance === hls) {
+        video._hlsInstance = null;
+      }
+
+      if (urlIndex + 1 < urls.length) {
+        urlIndex += 1;
+        start();
+        return;
+      }
+
+      showPlayerError(options.errorMessage || PLAYER_ERROR_DEFAULT_HTML);
+    });
+  };
+
+  start();
 }
 
 async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStreamUrl) {
   await senza.lifecycle.moveToForeground();
   await cleanupRemotePlayer();
 
-  const hlsUrl = isHttpsUrl(originalStreamUrl) ? originalStreamUrl : fallbackStreamUrl;
+  const hlsUrls = [originalStreamUrl, fallbackStreamUrl];
+
+  if (window.Hls && window.Hls.isSupported()) {
+    loadWithHls(video, hlsUrls, {
+      logPrefix: '[HLS foreground]',
+      beforePlay: () => {
+        video.muted = false;
+        video.volume = 1;
+      },
+      onManifestParsed: () => {
+        showToast('HLS experimental em foreground');
+      },
+      playErrorMessage: 'HLS carregou, mas o play falhou em foreground.',
+      errorMessage: 'Falha ao reproduzir HLS em foreground no Senza.',
+    });
+    return;
+  }
+
+  video.src = originalStreamUrl || fallbackStreamUrl;
+  video.muted = false;
+  video.volume = 1;
+  await video.play();
+  showToast('HLS nativo em foreground');
+  return;
 
   if (window.Hls && window.Hls.isSupported()) {
     const hls = new Hls({
@@ -359,7 +430,10 @@ async function loadChannel(ch) {
 
   // Fallback Hls.js ou Nativo
   if (isHLS && Hls.isSupported()) {
-    loadWithHls(video, streamUrl);
+    loadWithHls(video, [originalStreamUrl, streamUrl], {
+      logPrefix: '[HLS browser]',
+      errorMessage: 'Falha ao reproduzir HLS.',
+    });
   } else {
     video.src = streamUrl;
     video.play().catch(() => showPlayerError());
