@@ -1246,8 +1246,12 @@
       if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
       if (senzaPlayer) { try { (senzaPlayer.destroy ? senzaPlayer.destroy() : null); } catch (e) { } senzaPlayer = null; }
 
-      const isDASH = ch.stream_url.includes('.mpd');
-      const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u') || ch.stream_url.includes('output=hls') || ch.stream_url.includes('output=ts');
+      const streamUrl = (ch.stream_url.startsWith('http') && !ch.stream_url.startsWith('https')) 
+        ? `/api/proxy?url=${encodeURIComponent(ch.stream_url)}` 
+        : ch.stream_url;
+
+      const isDASH = streamUrl.includes('.mpd');
+      const isHLS = streamUrl.includes('.m3u8') || streamUrl.includes('type=m3u') || streamUrl.includes('output=hls') || streamUrl.includes('output=ts');
 
       // Se estiver no Senza...
       if (senzaReady && typeof senza !== 'undefined') {
@@ -1256,7 +1260,7 @@
           try {
             const PlayerClass = senza.shaka.Player;
             senzaPlayer = new PlayerClass(video);
-            await senzaPlayer.load(ch.stream_url);
+            await senzaPlayer.load(streamUrl);
             video.muted = false;
             video.volume = 1;
             await video.play();
@@ -1269,6 +1273,7 @@
           try {
             await senza.remotePlayer.stop();
             await senza.remotePlayer.unload();
+            await senza.remotePlayer.detach(); 
             showToast('🌐 Senza SDK: Browser Fallback (HLS)');
           } catch (e) { }
         }
@@ -1279,7 +1284,7 @@
         video.volume = 1; video.muted = false;
         const hls = new Hls({ enableWorker: true });
         video._hlsInstance = hls;
-        hls.loadSource(ch.stream_url);
+        hls.loadSource(streamUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.volume = 1; video.muted = false;
@@ -1287,11 +1292,11 @@
         });
         hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = ch.stream_url;
+        video.src = streamUrl;
         video.volume = 1; video.muted = false;
         video.play().catch(() => showPlayerError());
       } else {
-        video.src = ch.stream_url;
+        video.src = streamUrl;
         video.volume = 1; video.muted = false;
         video.onerror = () => showPlayerError();
         video.play().catch(() => showPlayerError());
