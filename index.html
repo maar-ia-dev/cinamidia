@@ -732,11 +732,27 @@
 
       <!-- TAB: LISTA INTEGRADA -->
       <div id="panelDefault" style="display:none">
-        <div style="background:var(--surface2);border-radius:10px;padding:24px;margin-bottom:16px;text-align:center">
-          <h3 style="margin:0 0 10px 0;font-size:16px;color:var(--text)">Lista Otimizada (BR)</h3>
-          <p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:0">Esta é a lista base (<b>br_categorizada.m3u</b>) hospedada junto com o CinaMídia. Basta clicar em "Adicionar e Sincronizar" abaixo, e se desejar, marcar a caixa de Verificação de canais.</p>
+        <div class="integrated-lists-grid">
+           <div class="integrated-card">
+              <h3>🎬 Lista BR Categorizada</h3>
+              <p>HLS: Canais brasileiros de diversas fontes públicas em alta definição.</p>
+              <button class="btn btn-secondary" onclick="handleDefaultUpload('br_categorizada.m3u', 'CinaMídia BR (Pública)')">Adicionar Esta</button>
+           </div>
+           <div class="integrated-card">
+              <h3>📡 DASH Audio Test</h3>
+              <p>DASH: Lista para testar o áudio do Senza SDK e Shaka Player (.mpd).</p>
+              <button class="btn btn-secondary" onclick="handleDefaultUpload('dash_test.m3u', 'Teste DASH (Senza/Shaka)')">Adicionar Esta</button>
+           </div>
         </div>
       </div>
+
+      <style>
+        .integrated-lists-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
+        .integrated-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+        .integrated-card h3 { font-size: 15px; margin-bottom: 8px; color: var(--accent); }
+        .integrated-card p { font-size: 12px; color: var(--muted); margin-bottom: 16px; min-height: 36px; }
+        .integrated-card .btn { width: 100%; font-size: 13px; }
+      </style>
 
       <div style="margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
@@ -1461,13 +1477,12 @@
       } catch (e) { showToast('❌ ' + e.message); }
     }
 
-    async function handleDefaultUpload() {
-      const label = "CinaMídia BR (Pública)";
-      // Se não estiver rodando num local server root, precisa construir origin correto
+    async function handleDefaultUpload(filename = 'br_categorizada.m3u', labelPrefix = 'CinaMídia BR (Pública)') {
+      const label = labelPrefix;
       const isLocalFile = window.location.protocol === 'file:';
-      const url = isLocalFile ? './br_categorizada.m3u' : window.location.origin + window.location.pathname.replace('index.html', '') + 'br_categorizada.m3u';
+      const url = isLocalFile ? `./${filename}` : window.location.origin + window.location.pathname.replace('index.html', '') + filename;
 
-      showToast('⏳ Sincronizando br_categorizada.m3u...');
+      showToast(`⏳ Sincronizando ${filename}...`);
       try {
         const newId = sources.length ? Math.max(...sources.map(s => s.id)) + 1 : 1;
         sources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });

@@ -1,0 +1,12 @@
+#EXTM3U
+#EXTINF:-1 tvg-logo="https://dashif.org/assets/img/logo.png" group-title="DASH Test",Big Buck Bunny (AAC Audio)
+https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd
+
+#EXTINF:-1 tvg-logo="https://dashif.org/assets/img/logo.png" group-title="DASH Test",Test Pattern Live (60fps)
+https://livesim.dashif.org/livesim/testpic_2s/Manifest.mpd
+
+#EXTINF:-1 tvg-logo="https://dashif.org/assets/img/logo.png" group-title="DASH Test",Envivio Dash Test
+https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd
+
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/4/4c/Synamedia_Logo.png" group-title="Senza Test",Senza Example Stream
+https://reference.dashif.org/dash.js/latest/samples/dash-if-reference-player/index.html?url=https://livesim.dashif.org/livesim/testpic_2s/Manifest.mpd
