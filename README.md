@@ -20,15 +20,22 @@ Interface IPTV moderna, rápida e otimizada para o uso em Smart TVs e Navegadore
 
 ## 🛠️ Estrutura do Projeto
 
-```
+```text
 cinamidia/
-├── index.html          # Núcleo da aplicação (UI, Lógica de Player e Navegação)
-├── br_categorizada.m3u # Lista principal de canais brasileiros integrada
-├── dash_test.m3u       # Lista de canais DASH para testes de hardware (Senza)
-├── banner.js           # Exemplo de referência técnica para o SDK Senza
-├── vercel.json         # Configurações de deploy e CSP
-└── api/
-    └── proxy.js        # Proxy para acesso a streams HTTP e bypass de CORS
+├── index.html          # Ponto de entrada (Estrutura HTML)
+├── style.css           # Design, Animações e Temas (Netflix-style)
+├── js/                 # Lógica Modular da Aplicação
+│   ├── app.js          # Inicialização, Boot e Estado Global
+│   ├── navigation.js   # Navegação D-Pad (Controle Remoto) e Teclado
+│   ├── player.js       # Player de Vídeo (Senza, Shaka e Hls.js)
+│   ├── sync.js         # Sincronização e Validação de Canais (em Batch)
+│   ├── admin.js        # Gestão de Fontes e Painel de Configurações
+│   ├── storage.js      # Conector IndexedDB (idb-keyval)
+│   ├── parser.js       # Motor de leitura de Listas M3U e Xtream
+│   └── ui.js           # Utilitários Visuais (Toast, Confirm, Relógio)
+├── api/
+│   └── proxy.js        # Proxy Serverless para bypass de CORS/Mixed Content
+└── data/ (referência)  # Listas M3U integradas (br_categorizada.m3u, etc.)
 ```
 
 ## ⌨️ Comandos do Controle / Teclado
