@@ -10,8 +10,8 @@
   --muted: #6b7a99;
   --radius: 12px;
   --focus-ring: 0 0 0 4px var(--accent-glow), 0 8px 40px rgba(0, 0, 0, 0.6);
-  --card-w: 220px;
-  --card-h: 140px;
+  --card-w: 264px;
+  --card-h: 168px;
 }
 
 * {
@@ -128,6 +128,14 @@ body {
 
 .row-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.row-scroll.grid-mode {
+  flex-wrap: wrap;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding-bottom: 80px; 
+  gap: 24px;
 }
 
 /* ═══ CHANNEL CARD (TV size) ═══════════════════════════════════════════════ */

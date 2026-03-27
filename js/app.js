@@ -168,7 +168,7 @@ function renderContent() {
     <span class="row-title">${h(row.group)}</span>
     <span class="row-count">${row.channels.length} canais</span>
   </div>
-  <div class="row-scroll" id="rowScroll${ri}">`;
+  <div class="row-scroll ${activeCategory ? 'grid-mode' : ''}" id="rowScroll${ri}">`;
     html += subset.map((ch, ci) => getCardHTML(ri, ci, ch)).join('');
     html += `</div></div>`;
     return html;
