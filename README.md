@@ -45,13 +45,14 @@ cinamidia/
 - **M**: Ativa/Desativa o modo mudo.
 - **Setas (Cima/Baixo) no Player**: Ajusta o volume com feedback visual (Toast).
 
-## 🌍 Deploy e Deploy Local
-Para rodar localmente ou em produção, basta clonar e hospedar em qualquer serviço estático (Vercel recomendado para suporte à API de Proxy).
+## ⚠️ Pendências e Melhorias (Backlog)
 
-```bash
-# Servir arquivos estáticos (exemplo com serve)
-npx serve .
-```
+### 🔊 Problema de Áudio HLS no Senza SDK
+Existe um comportamento conhecido no Senza SDK onde o áudio de transmissões **HLS (.m3u8/TS)** pode não iniciar automaticamente se o aplicativo não estiver explicitamente em **Foreground**. 
+
+- **Onde é tratado no código?**: [js/player.js](file:///h:/Tiago/projetos_ai/cinamidia/js/player.js) (Linhas 50-80).
+- **Status atual**: Implementamos o comando `senza.lifecycle.moveToForeground()` antes do `player.load()`, além de forçar a seleção de trilha de áudio (`selectAudioLanguage('pt-BR')`).
+- **Necessário**: Validar se o hardware da TV requer o uso de `Senza.remotePlayer` em vez do Shaka Player nativo para fluxos TS puros, ou se a transição de lifecycle é suficiente.
 
 ---
 *CinaMídia — Criado para elevar a experiência de IPTV em grandes telas.*
