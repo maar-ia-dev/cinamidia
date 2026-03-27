@@ -1626,10 +1626,6 @@
 
       showToast(`📋 ${parsed.length} canais encontrados`);
 
-      // 1. SALVA IMEDIATAMENTE para o usuário ver os canais rápido
-      await saveChannelsToStorage(sourceId, parsed);
-      await loadSources(); await loadData();
-
       // 2. VALIDAÇÃO (SE ATIVADO)
       if (shouldValidate) {
         progressEl?.classList.add('active');
