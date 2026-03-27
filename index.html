@@ -4,12 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CinaMídia</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-
-<!--
-  SENZA SDK (CDN)
-  Em produção via NPM: import { init, uiReady, SenzaShakaPlayer, lifecycle } from "senza-sdk"
--->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://senza-sdk.streaming.synamedia.com/latest/bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
 
@@ -20,154 +15,226 @@
     --surface2: #151e2d;
     --border: rgba(255,255,255,0.07);
     --accent: #e8a020;
+    --accent-glow: rgba(232,160,32,0.35);
     --accent2: #c0392b;
     --text: #e8eaf0;
     --muted: #6b7a99;
-    --radius: 10px;
+    --radius: 12px;
+    --focus-ring: 0 0 0 4px var(--accent-glow), 0 8px 40px rgba(0,0,0,0.6);
+    --card-w: 220px;
+    --card-h: 140px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow-x:hidden; }
+  html, body {
+    height:100%; background:var(--bg); color:var(--text);
+    font-family:'DM Sans',sans-serif; overflow:hidden;
+    cursor:none; /* TV mode: no mouse cursor */
+    user-select:none;
+  }
 
+  /* ═══ HEADER (overlay, sem scroll) ══════════════════════════════════════════ */
   header {
     position:fixed; top:0; left:0; right:0; z-index:100;
     display:flex; align-items:center; justify-content:space-between;
-    padding:0 32px; height:64px;
-    background:linear-gradient(to bottom, rgba(8,12,18,0.98), transparent);
-    border-bottom:1px solid var(--border); backdrop-filter:blur(12px);
+    padding:0 48px; height:80px;
+    background:linear-gradient(to bottom, var(--bg) 60%, transparent);
   }
-  .logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--accent); }
+  .logo { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:4px; color:var(--accent); }
   .logo span { color:var(--text); }
   .senza-badge {
-    font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
     background:rgba(232,160,32,0.15); color:var(--accent);
     border:1px solid rgba(232,160,32,0.3); border-radius:20px;
-    padding:3px 10px; margin-left:12px;
+    padding:4px 12px; margin-left:16px;
   }
-  .search-bar {
-    display:flex; align-items:center; gap:10px;
-    background:var(--surface2); border:1px solid var(--border);
-    border-radius:8px; padding:8px 14px; width:260px;
+  .header-info {
+    display:flex; align-items:center; gap:16px;
+    font-size:14px; color:var(--muted);
   }
-  .search-bar input {
-    background:none; border:none; outline:none;
-    color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; width:100%;
+  .clock { font-family:'Bebas Neue',sans-serif; font-size:28px; color:var(--text); letter-spacing:2px; }
+
+  /* ═══ CATEGORIES BAR (horizontal, no topo) ══════════════════════════════════ */
+  .cat-bar {
+    position:fixed; top:80px; left:0; right:0; z-index:90;
+    display:flex; align-items:center; gap:8px;
+    padding:16px 48px;
+    background:linear-gradient(to bottom, var(--bg) 80%, transparent);
+    overflow-x:auto; scrollbar-width:none;
   }
-  .search-bar input::placeholder { color:var(--muted); }
-
-  .layout { display:flex; padding-top:64px; height:100vh; }
-
-  .sidebar {
-    width:220px; flex-shrink:0;
-    background:var(--surface); border-right:1px solid var(--border);
-    overflow-y:auto; padding:16px 0;
+  .cat-bar::-webkit-scrollbar { display:none; }
+  .cat-chip {
+    flex-shrink:0; padding:10px 24px; border-radius:28px;
+    font-size:15px; font-weight:500; color:var(--muted);
+    background:var(--surface); border:2px solid transparent;
+    cursor:pointer; transition:all .2s; white-space:nowrap;
+    outline:none;
   }
-  .sidebar::-webkit-scrollbar { width:4px; }
-  .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
-  .sidebar-title { font-size:10px; font-weight:600; letter-spacing:2px; color:var(--muted); text-transform:uppercase; padding:8px 20px 12px; }
-  .cat-item {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:10px 20px; cursor:pointer; border-left:3px solid transparent;
-    transition:all .15s; font-size:13px; color:var(--muted);
+  .cat-chip:hover, .cat-chip.focused { color:var(--text); background:var(--surface2); border-color:var(--border); }
+  .cat-chip.active { color:var(--accent); background:rgba(232,160,32,0.12); border-color:var(--accent); }
+  .cat-chip.focused { box-shadow:var(--focus-ring); transform:scale(1.05); }
+
+  /* ═══ CONTENT AREA (rows horizontais estilo Netflix) ═══════════════════════ */
+  .content {
+    position:fixed; top:150px; left:0; right:0; bottom:0;
+    overflow-y:auto; overflow-x:hidden;
+    padding:0 0 60px 0; scrollbar-width:none;
   }
-  .cat-item:hover { background:var(--surface2); color:var(--text); border-left-color:var(--border); }
-  .cat-item.active { background:var(--surface2); color:var(--accent); border-left-color:var(--accent); }
-  .cat-count { font-size:11px; background:var(--surface); color:var(--muted); border-radius:20px; padding:2px 8px; border:1px solid var(--border); }
-  .cat-item.active .cat-count { background:rgba(232,160,32,0.15); color:var(--accent); border-color:rgba(232,160,32,0.3); }
+  .content::-webkit-scrollbar { display:none; }
 
-  .main { flex:1; overflow-y:auto; padding:28px 32px; }
-  .main::-webkit-scrollbar { width:6px; }
-  .main::-webkit-scrollbar-thumb { background:var(--surface2); border-radius:4px; }
-
-  .section-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-  .section-title { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; }
-  .section-count { font-size:12px; color:var(--muted); background:var(--surface2); padding:3px 10px; border-radius:20px; border:1px solid var(--border); }
-
-  .channel-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; margin-bottom:40px; }
-  .channel-card {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); overflow:hidden; cursor:pointer;
-    transition:transform .2s, border-color .2s, box-shadow .2s;
-    aspect-ratio:16/10; position:relative; outline:none;
+  .row { margin-bottom:36px; }
+  .row-header {
+    padding:0 48px; margin-bottom:14px;
+    display:flex; align-items:baseline; gap:12px;
   }
-  .channel-card:hover { transform:scale(1.04); border-color:rgba(232,160,32,0.4); box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:2; }
-  /* Foco via controle remoto */
-  .channel-card.focused { transform:scale(1.06); border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,160,32,0.4); z-index:3; }
-  .channel-card img { width:100%; height:100%; object-fit:contain; padding:16px; filter:brightness(0.9); transition:filter .2s; }
-  .channel-card:hover img, .channel-card.focused img { filter:brightness(1.1); }
-  .no-logo { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:12px; background:linear-gradient(135deg, var(--surface2), var(--surface)); }
-  .no-logo .ch-icon { font-size:24px; }
-  .no-logo .ch-name { font-size:11px; font-weight:500; text-align:center; color:var(--text); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .play-overlay { position:absolute; inset:0; background:rgba(232,160,32,0.15); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; }
-  .channel-card:hover .play-overlay, .channel-card.focused .play-overlay { opacity:1; }
-  .play-btn-icon { width:40px; height:40px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(232,160,32,0.5); }
-  .play-btn-icon svg { fill:white; margin-left:3px; }
+  .row-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; }
+  .row-count { font-size:13px; color:var(--muted); }
 
-  /* Quando player está em background no Cloud Connector, UI desaparece */
-  body.background-mode .layout,
-  body.background-mode header { opacity:0; pointer-events:none; transition:opacity .3s; }
+  .row-scroll {
+    display:flex; gap:16px; padding:8px 48px 16px;
+    overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none;
+  }
+  .row-scroll::-webkit-scrollbar { display:none; }
 
-  .player-modal {
+  /* ═══ CHANNEL CARD (TV size) ═══════════════════════════════════════════════ */
+  .card {
+    flex-shrink:0; width:var(--card-w); height:var(--card-h);
+    background:var(--surface); border:2px solid var(--border);
+    border-radius:var(--radius); overflow:hidden;
+    cursor:pointer; position:relative; outline:none;
+    transition:transform .25s cubic-bezier(.4,0,.2,1),
+               border-color .2s, box-shadow .3s;
+  }
+  .card img {
+    width:100%; height:100%; object-fit:contain; padding:20px;
+    filter:brightness(0.85); transition:filter .25s;
+  }
+  .card .no-logo {
+    width:100%; height:100%; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px; padding:16px;
+    background:linear-gradient(135deg, var(--surface2), var(--surface));
+  }
+  .card .ch-icon { font-size:28px; }
+  .card .ch-name {
+    font-size:13px; font-weight:500; text-align:center; color:var(--text);
+    line-height:1.3; display:-webkit-box; -webkit-line-clamp:2;
+    line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .card .play-overlay {
+    position:absolute; inset:0;
+    background:rgba(232,160,32,0.18);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .25s;
+  }
+  .card .play-icon {
+    width:48px; height:48px; background:var(--accent); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 24px rgba(232,160,32,0.5);
+    transform:scale(0.8); transition:transform .25s;
+  }
+  .card .play-icon svg { fill:white; margin-left:3px; }
+
+  /* ── FOCUSED STATE (D-Pad / controle remoto) ── */
+  .card.focused {
+    transform:scale(1.12);
+    border-color:var(--accent);
+    box-shadow:var(--focus-ring);
+    z-index:5;
+  }
+  .card.focused img { filter:brightness(1.15); }
+  .card.focused .play-overlay { opacity:1; }
+  .card.focused .play-icon { transform:scale(1); }
+
+  /* ── Channel label under focused card ── */
+  .card-label {
+    position:absolute; bottom:-32px; left:50%; transform:translateX(-50%);
+    font-size:13px; font-weight:600; color:var(--text);
+    white-space:nowrap; text-shadow:0 2px 8px rgba(0,0,0,0.8);
+    opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+  .card.focused .card-label { opacity:1; }
+
+  /* ═══ PLAYER (fullscreen) ══════════════════════════════════════════════════ */
+  .player-overlay {
     display:none; position:fixed; inset:0; z-index:200;
-    background:rgba(5,8,14,0.96); backdrop-filter:blur(16px);
-    flex-direction:column; align-items:center; justify-content:center;
+    background:#000; flex-direction:column;
   }
-  .player-modal.open { display:flex; animation:fadeIn .2s ease; }
-  @keyframes fadeIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
-  .player-wrap { width:min(1100px,95vw); display:flex; flex-direction:column; gap:16px; }
-  .player-topbar { display:flex; align-items:center; justify-content:space-between; }
-  .player-info { display:flex; align-items:center; gap:14px; }
-  .player-logo { width:40px; height:40px; object-fit:contain; border-radius:6px; background:var(--surface); padding:4px; }
-  .player-name { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; }
-  .player-cat { font-size:12px; color:var(--muted); margin-top:2px; }
-  .close-btn { width:40px; height:40px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:20px; transition:all .15s; }
-  .close-btn:hover { background:var(--accent2); color:white; border-color:var(--accent2); }
-  .video-container { width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--radius); overflow:hidden; position:relative; border:1px solid var(--border); }
-  video { width:100%; height:100%; }
-  .player-error { display:none; position:absolute; inset:0; background:var(--surface); flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+  .player-overlay.open { display:flex; }
+  .player-overlay video { width:100%; height:100%; object-fit:contain; }
+  .player-hud {
+    position:absolute; bottom:0; left:0; right:0;
+    padding:24px 48px 32px;
+    background:linear-gradient(to top, rgba(0,0,0,0.9) 40%, transparent);
+    display:flex; align-items:center; gap:20px;
+    opacity:1; transition:opacity .4s;
+  }
+  .player-hud.hidden { opacity:0; pointer-events:none; }
+  .player-hud-logo { width:48px; height:48px; object-fit:contain; border-radius:8px; background:var(--surface); padding:6px; }
+  .player-hud-name { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:1px; }
+  .player-hud-cat { font-size:14px; color:var(--muted); margin-top:2px; }
+  .player-hud-hint { margin-left:auto; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .player-hud-hint kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:28px; height:28px; padding:0 6px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; font-size:12px; font-family:inherit; color:var(--text);
+  }
+  .player-error {
+    display:none; position:absolute; inset:0;
+    background:rgba(8,12,18,0.95);
+    flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  }
   .player-error.show { display:flex; }
-  .player-error .err-icon { font-size:48px; }
-  .player-error p { color:var(--muted); font-size:14px; }
+  .player-error .err-icon { font-size:56px; }
+  .player-error p { color:var(--muted); font-size:16px; text-align:center; line-height:1.6; }
 
+  /* ═══ ADMIN PANEL ══════════════════════════════════════════════════════════ */
   .admin-panel { display:none; position:fixed; inset:0; z-index:300; background:rgba(5,8,14,0.97); backdrop-filter:blur(16px); align-items:center; justify-content:center; }
   .admin-panel.open { display:flex; }
-  .admin-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:32px; width:min(520px,92vw); }
-  .admin-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; margin-bottom:24px; }
-  .form-group { margin-bottom:16px; }
+  .admin-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:36px; width:min(560px,92vw); }
+  .admin-title { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:1px; margin-bottom:28px; }
+  .form-group { margin-bottom:18px; }
   .form-group label { display:block; font-size:12px; font-weight:600; letter-spacing:.5px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; }
-  .form-group input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; transition:border .15s; }
+  .form-group input {
+    width:100%; background:var(--surface2); border:2px solid var(--border);
+    border-radius:10px; padding:14px 18px; color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:16px; outline:none; transition:border .15s;
+  }
   .form-group input:focus { border-color:var(--accent); }
-  .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; cursor:pointer; border:none; transition:all .15s; }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:14px 28px; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; border:none; transition:all .15s; }
   .btn-primary { background:var(--accent); color:#000; }
-  .btn-primary:hover { background:#f0b030; }
+  .btn-primary:hover, .btn-primary:focus { background:#f0b030; }
   .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
-  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
   .btn-danger { background:rgba(192,57,43,0.2); color:#e74c3c; border:1px solid rgba(192,57,43,0.3); }
-  .btn-danger:hover { background:var(--accent2); color:white; }
   .btn-row { display:flex; gap:10px; margin-top:24px; }
   .source-list { margin-top:24px; display:flex; flex-direction:column; gap:8px; }
-  .source-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; }
-  .source-item-info { display:flex; flex-direction:column; gap:3px; }
-  .source-item-label { font-size:14px; font-weight:500; }
-  .source-item-meta { font-size:11px; color:var(--muted); }
+  .source-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
+  .source-item-info { display:flex; flex-direction:column; gap:4px; }
+  .source-item-label { font-size:15px; font-weight:500; }
+  .source-item-meta { font-size:12px; color:var(--muted); }
   .source-actions { display:flex; gap:8px; }
-  .status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted); margin-right:5px; }
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); margin-right:6px; }
   .status-dot.synced { background:#2ecc71; }
-  .admin-toggle { width:36px; height:36px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--muted); transition:all .15s; }
-  .admin-toggle:hover { color:var(--accent); border-color:var(--accent); }
-  .toast { position:fixed; bottom:24px; right:24px; z-index:999; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 20px; font-size:14px; display:flex; align-items:center; gap:10px; animation:slideUp .3s ease; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
-  @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-  .empty { text-align:center; padding:80px 20px; color:var(--muted); }
-  .empty .big { font-size:48px; margin-bottom:16px; }
 
-  @media (max-width:600px) {
-    .sidebar { width:72px; }
-    .cat-item .cat-label { display:none; }
-    .cat-count { display:none; }
-    header { padding:0 16px; }
-    .search-bar { width:160px; }
-    .main { padding:20px 16px; }
-    .channel-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+  /* ═══ TOAST ═════════════════════════════════════════════════════════════════ */
+  .toast {
+    position:fixed; bottom:32px; left:50%; transform:translateX(-50%); z-index:999;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 28px; font-size:16px; display:flex; align-items:center; gap:10px;
+    animation:toastIn .3s ease; box-shadow:0 8px 40px rgba(0,0,0,0.5);
   }
+  @keyframes toastIn { from{opacity:0;transform:translate(-50%,16px)} to{opacity:1;transform:translate(-50%,0)} }
+
+  /* ═══ EMPTY STATE ══════════════════════════════════════════════════════════ */
+  .empty { text-align:center; padding:120px 20px; color:var(--muted); }
+  .empty .big { font-size:64px; margin-bottom:20px; }
+  .empty p { font-size:18px; line-height:1.6; }
+  .empty kbd { display:inline-block; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:14px; color:var(--text); margin:0 4px; }
+
+  /* ═══ BACKGROUND MODE (Senza Cloud Connector) ═════════════════════════════ */
+  body.background-mode header,
+  body.background-mode .cat-bar,
+  body.background-mode .content { opacity:0; pointer-events:none; transition:opacity .3s; }
 </style>
 </head>
 <body>
@@ -177,66 +244,57 @@
     <div class="logo">Cina<span>Mídia</span></div>
     <span class="senza-badge" id="senzaBadge" style="display:none">Senza ●</span>
   </div>
-  <div class="search-bar">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" id="searchInput" placeholder="Buscar canal..." oninput="handleSearch(this.value)"/>
+  <div class="header-info">
+    <span id="channelCounter" style="font-size:13px"></span>
+    <div class="clock" id="clock"></div>
   </div>
-  <button class="admin-toggle" onclick="toggleAdmin()" title="Configurações">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-  </button>
 </header>
 
-<div class="layout">
-  <aside class="sidebar">
-    <div class="sidebar-title">Categorias</div>
-    <div id="categoryList"></div>
-  </aside>
-  <main class="main" id="mainContent">
-    <div class="empty">
-      <div class="big">📺</div>
-      <p>Nenhuma fonte configurada ainda.<br/>Clique no ⚙️ para adicionar uma playlist M3U.</p>
-    </div>
-  </main>
-</div>
+<!-- CATEGORIES (horizontal chips) -->
+<nav class="cat-bar" id="catBar"></nav>
 
-<!-- PLAYER -->
-<div class="player-modal" id="playerModal">
-  <div class="player-wrap">
-    <div class="player-topbar">
-      <div class="player-info">
-        <img id="playerLogo" class="player-logo" src="" alt=""/>
-        <div>
-          <div class="player-name" id="playerName"></div>
-          <div class="player-cat" id="playerCat"></div>
-        </div>
-      </div>
-      <button class="close-btn" onclick="closePlayer()">✕</button>
-    </div>
-    <div class="video-container">
-      <!-- Senza requer width/height 1920x1080 no elemento video -->
-      <video id="videoEl" width="1920" height="1080" muted playsinline></video>
-      <div class="player-error" id="playerError">
-        <div class="err-icon">⚠️</div>
-        <p>Não foi possível carregar este canal</p>
-      </div>
-    </div>
+<!-- CONTENT (horizontal rows) -->
+<div class="content" id="content">
+  <div class="empty">
+    <div class="big">📺</div>
+    <p>Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> ou <kbd>MENU</kbd> para adicionar uma playlist M3U.</p>
   </div>
 </div>
 
-<!-- ADMIN -->
+<!-- PLAYER (fullscreen) -->
+<div class="player-overlay" id="playerOverlay">
+  <video id="videoEl" width="1920" height="1080" playsinline></video>
+  <div class="player-hud" id="playerHud">
+    <img id="playerLogo" class="player-hud-logo" src="" alt=""/>
+    <div>
+      <div class="player-hud-name" id="playerName"></div>
+      <div class="player-hud-cat" id="playerCat"></div>
+    </div>
+    <div class="player-hud-hint">
+      <kbd>◀</kbd><kbd>▶</kbd> Mudar canal &nbsp;
+      <kbd>BACK</kbd> Voltar
+    </div>
+  </div>
+  <div class="player-error" id="playerError">
+    <div class="err-icon">📡</div>
+    <p>Não foi possível carregar este canal.<br/>O servidor pode estar offline ou bloquear CORS.</p>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
 <div class="admin-panel" id="adminPanel">
   <div class="admin-box">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-      <div class="admin-title">Fontes M3U</div>
-      <button class="close-btn" onclick="toggleAdmin()">✕</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+      <div class="admin-title">⚙️ Fontes M3U</div>
+      <button class="btn btn-secondary" onclick="toggleAdmin()" style="padding:8px 16px;font-size:13px">✕ Fechar</button>
     </div>
     <div class="form-group">
       <label>Nome da Fonte</label>
-      <input type="text" id="sourceLabel" placeholder="Ex: CinaMídia IPTV"/>
+      <input type="text" id="sourceLabel" placeholder="Ex: Free IPTV"/>
     </div>
     <div class="form-group">
-      <label>URL M3U / Xtream Codes</label>
-      <input type="url" id="sourceUrl" placeholder="https://..."/>
+      <label>URL da Playlist M3U</label>
+      <input type="url" id="sourceUrl" placeholder="https://raw.githubusercontent.com/..."/>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="addSource()">
@@ -251,31 +309,26 @@
 <script>
 // ─── CLIENT-SIDE STORAGE ──────────────────────────────────────────────────────
 const STORAGE_KEYS = { sources: 'cinamidia_sources', channels: 'cinamidia_channels' };
+function getStored(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
+function setStored(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
 
-function getStored(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
-}
-function setStored(key, data) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
-
-// ─── M3U PARSER (client-side) ─────────────────────────────────────────────────
+// ─── M3U PARSER ───────────────────────────────────────────────────────────────
 function parseM3U(content) {
   const lines = content.split('\n').map(l => l.trim());
   const result = [];
   for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('#EXTINF')) continue;
+    const url = lines[i + 1];
+    if (!url || url.startsWith('#')) continue;
     const line = lines[i];
-    if (!line.startsWith('#EXTINF')) continue;
-    const urlLine = lines[i + 1];
-    if (!urlLine || urlLine.startsWith('#')) continue;
-
-    const name       = line.split(',').slice(1).join(',').trim();
-    const logo       = line.match(/tvg-logo="([^"]*)"/)?.[1] ?? '';
-    const groupTitle = line.match(/group-title="([^"]*)"/)?.[1] ?? 'Sem categoria';
-    const tvgId      = line.match(/tvg-id="([^"]*)"/)?.[1] ?? '';
-    const tvgName    = line.match(/tvg-name="([^"]*)"/)?.[1] ?? name;
-
-    result.push({ name, logo, groupTitle, tvgId, tvgName, url: urlLine });
+    result.push({
+      name:       line.split(',').slice(1).join(',').trim(),
+      logo:       line.match(/tvg-logo="([^"]*)"/)?.[1] ?? '',
+      groupTitle: line.match(/group-title="([^"]*)"/)?.[1] ?? 'Sem categoria',
+      tvgId:      line.match(/tvg-id="([^"]*)"/)?.[1] ?? '',
+      tvgName:    line.match(/tvg-name="([^"]*)"/)?.[1] ?? '',
+      url
+    });
   }
   return result;
 }
@@ -283,14 +336,20 @@ function parseM3U(content) {
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let allChannels = [];
 let categories  = [];
-let activeCategory   = null;
-let senzaPlayer      = null;
-let senzaReady       = false;
-let focusedCardIndex = 0;
-let currentGridChannels = [];
+let activeCategory = null;
+let senzaReady   = false;
+let senzaPlayer  = null;
+
+// Navigation state
+const NAV = { zone:'grid', catIdx:0, rowIdx:0, colIdx:0 };
+let gridRows = []; // [{group, channels}]
 
 // ─── SENZA INIT ───────────────────────────────────────────────────────────────
 async function initSenza() {
+  if (typeof window.cefQuery === 'undefined' || typeof senza === 'undefined') {
+    console.info('[Senza] Modo browser — SDK ignorado');
+    return;
+  }
   try {
     await senza.init();
     senzaReady = true;
@@ -300,135 +359,297 @@ async function initSenza() {
       document.body.classList.toggle('background-mode', bg);
     });
     senza.uiReady();
-    console.info('[Senza] Iniciado — Cloud Connector ativo');
-  } catch (e) {
-    console.info('[Senza] Modo browser normal');
-  }
+    console.info('[Senza] Cloud Connector ativo');
+  } catch (e) { console.warn('[Senza]', e.message); }
+}
+
+// ─── CLOCK ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   await initSenza();
   loadData();
-  setupRemoteNav();
+  setupNavigation();
+  updateClock();
+  setInterval(updateClock, 30000);
 });
 
-// ─── DATA (localStorage) ─────────────────────────────────────────────────────
+// ─── DATA ─────────────────────────────────────────────────────────────────────
 function loadData() {
   allChannels = getStored(STORAGE_KEYS.channels);
-  // Derivar categorias dos canais
   const catMap = {};
   allChannels.forEach(ch => {
     const g = ch.group_title || 'Outros';
-    if (!catMap[g]) catMap[g] = { id: g, name: g, channel_count: 0 };
-    catMap[g].channel_count++;
+    if (!catMap[g]) catMap[g] = { id: g, name: g, count: 0 };
+    catMap[g].count++;
   });
   categories = Object.values(catMap).sort((a, b) => a.name.localeCompare(b.name));
-  renderSidebar();
-  renderGrid(allChannels);
+
+  document.getElementById('channelCounter').textContent =
+    allChannels.length ? `${allChannels.length} canais` : '';
+
+  renderCatBar();
+  renderContent();
 }
 
-// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-function renderSidebar() {
-  document.getElementById('categoryList').innerHTML = `
-    <div class="cat-item ${!activeCategory?'active':''}" onclick="selectCategory(null)">
-      <span class="cat-label">Todos</span>
-      <span class="cat-count">${allChannels.length}</span>
-    </div>
+// ─── CATEGORY BAR ─────────────────────────────────────────────────────────────
+function renderCatBar() {
+  const bar = document.getElementById('catBar');
+  bar.innerHTML = `
+    <div class="cat-chip ${!activeCategory?'active':''}" data-cat="" onclick="selectCategory(null)">Todos</div>
     ${categories.map(c => `
-      <div class="cat-item ${activeCategory===c.id?'active':''}" onclick="selectCategory('${js(c.id)}')">
-        <span class="cat-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${h(c.name)}">${h(c.name)}</span>
-        <span class="cat-count">${c.channel_count||0}</span>
-      </div>
+      <div class="cat-chip ${activeCategory===c.id?'active':''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')">${h(c.name)}</div>
     `).join('')}
   `;
 }
 
 function selectCategory(id) {
   activeCategory = id;
-  renderSidebar();
-  renderGrid(id ? allChannels.filter(c => (c.group_title||'Outros') === id) : allChannels);
+  NAV.rowIdx = 0; NAV.colIdx = 0;
+  renderCatBar();
+  renderContent();
+  updateFocus();
 }
 
-// ─── GRID ─────────────────────────────────────────────────────────────────────
-function renderGrid(channels) {
-  currentGridChannels = channels;
-  focusedCardIndex = 0;
-  const main = document.getElementById('mainContent');
-  if (!channels.length) {
-    main.innerHTML = `<div class="empty"><div class="big">📺</div><p>Nenhum canal encontrado.<br/>Clique no ⚙️ para adicionar uma playlist M3U.</p></div>`;
+// ─── CONTENT ROWS ─────────────────────────────────────────────────────────────
+function renderContent() {
+  const filtered = activeCategory
+    ? allChannels.filter(c => (c.group_title||'Outros') === activeCategory)
+    : allChannels;
+
+  if (!filtered.length) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty">
+        <div class="big">📺</div>
+        <p>${allChannels.length ? 'Nenhum canal nessa categoria.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.'}</p>
+      </div>`;
+    gridRows = [];
     return;
   }
-  const grouped = {};
-  channels.forEach(ch => { const g = ch.group_title||'Outros'; if(!grouped[g])grouped[g]=[]; grouped[g].push(ch); });
 
-  main.innerHTML = Object.entries(grouped).map(([group, chs]) => `
-    <div class="section-header">
-      <span class="section-title">${h(group)}</span>
-      <span class="section-count">${chs.length} canais</span>
-    </div>
-    <div class="channel-grid">
-      ${chs.map(ch => `
-        <div class="channel-card" tabindex="0"
-             data-id="${ch.id}"
-             onclick="openPlayer(${ch.id})"
-             onkeydown="if(event.key==='Enter')openPlayer(${ch.id})">
-          ${ch.logo
-            ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy" onerror="this.parentNode.innerHTML=noLogoHtml('${js(ch.name)}')"/>`
-            : noLogoHtml(ch.name)}
-          <div class="play-overlay">
-            <div class="play-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
+  // Agrupa em rows por categoria
+  const grouped = {};
+  filtered.forEach(ch => {
+    const g = ch.group_title || 'Outros';
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(ch);
+  });
+
+  gridRows = Object.entries(grouped).map(([group, channels]) => ({ group, channels }));
+
+  document.getElementById('content').innerHTML = gridRows.map((row, ri) => `
+    <div class="row" data-row="${ri}">
+      <div class="row-header">
+        <span class="row-title">${h(row.group)}</span>
+        <span class="row-count">${row.channels.length}</span>
+      </div>
+      <div class="row-scroll" id="rowScroll${ri}">
+        ${row.channels.map((ch, ci) => `
+          <div class="card" data-row="${ri}" data-col="${ci}" data-id="${ch.id}">
+            ${ch.logo
+              ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy"
+                   onerror="this.outerHTML='<div class=\\'no-logo\\'><span class=\\'ch-icon\\'>📺</span><span class=\\'ch-name\\'>${h(ch.name)}</span></div>'"/>`
+              : `<div class="no-logo"><span class="ch-icon">📺</span><span class="ch-name">${h(ch.name)}</span></div>`}
+            <div class="play-overlay">
+              <div class="play-icon"><svg width="18" height="18" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
+            </div>
+            <div class="card-label">${h(ch.name)}</div>
           </div>
-        </div>
-      `).join('')}
+        `).join('')}
+      </div>
     </div>
   `).join('');
+
+  // Clamp nav indices
+  NAV.rowIdx = Math.min(NAV.rowIdx, gridRows.length - 1);
+  NAV.colIdx = Math.min(NAV.colIdx, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
+  updateFocus();
 }
 
-function noLogoHtml(name) {
-  return `<div class="no-logo"><span class="ch-icon">📺</span><span class="ch-name">${h(name)}</span></div>`;
+// ─── NAVIGATION (D-Pad / Keyboard) ───────────────────────────────────────────
+let hudTimer = null;
+
+function setupNavigation() {
+  document.addEventListener('keydown', handleKey);
+  // Mouse click fallback
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (card) {
+      const id = parseInt(card.dataset.id);
+      if (id) openPlayer(id);
+    }
+  });
 }
 
-// ─── BUSCA ────────────────────────────────────────────────────────────────────
-function handleSearch(q) {
-  renderGrid(q
-    ? allChannels.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))
-    : (activeCategory ? allChannels.filter(c => (c.group_title||'Outros') === activeCategory) : allChannels)
-  );
+function handleKey(e) {
+  const playerOpen = document.getElementById('playerOverlay').classList.contains('open');
+  const adminOpen  = document.getElementById('adminPanel').classList.contains('open');
+
+  // ─ ADMIN PANEL open ─
+  if (adminOpen) {
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
+      e.preventDefault(); toggleAdmin();
+    }
+    return;
+  }
+
+  // ─ PLAYER open ─
+  if (playerOpen) {
+    e.preventDefault();
+    switch(e.key) {
+      case 'Escape': case 'Backspace': case 'GoBack':
+        closePlayer(); break;
+      case 'ArrowLeft':
+        changeChannel(-1); break;
+      case 'ArrowRight':
+        changeChannel(1); break;
+      case 'ArrowUp': case 'ArrowDown':
+        // Show/hide HUD
+        showHud(); break;
+    }
+    return;
+  }
+
+  // ─ MAIN GRID navigation ─
+  if (!gridRows.length) {
+    if (e.key === 'm' || e.key === 'M' || e.key === 'ContextMenu') { e.preventDefault(); toggleAdmin(); }
+    return;
+  }
+
+  e.preventDefault();
+
+  if (NAV.zone === 'categories') {
+    const chips = [...document.querySelectorAll('.cat-chip')];
+    switch(e.key) {
+      case 'ArrowLeft':  NAV.catIdx = Math.max(0, NAV.catIdx - 1); break;
+      case 'ArrowRight': NAV.catIdx = Math.min(chips.length - 1, NAV.catIdx + 1); break;
+      case 'ArrowDown':
+        NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
+        updateFocus(); return;
+      case 'Enter': case 'OK':
+        chips[NAV.catIdx]?.click(); return;
+      case 'm': case 'M': case 'ContextMenu':
+        toggleAdmin(); return;
+      default: return;
+    }
+    updateCatFocus(chips);
+    return;
+  }
+
+  // zone === 'grid'
+  switch(e.key) {
+    case 'ArrowRight':
+      NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
+      break;
+    case 'ArrowLeft':
+      NAV.colIdx = Math.max(0, NAV.colIdx - 1);
+      break;
+    case 'ArrowDown':
+      if (NAV.rowIdx < gridRows.length - 1) {
+        NAV.rowIdx++;
+        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+      }
+      break;
+    case 'ArrowUp':
+      if (NAV.rowIdx > 0) {
+        NAV.rowIdx--;
+        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+      } else {
+        // Move to categories
+        NAV.zone = 'categories'; NAV.catIdx = 0;
+        updateCatFocus([...document.querySelectorAll('.cat-chip')]);
+        clearFocus();
+        return;
+      }
+      break;
+    case 'Enter': case 'OK':
+      const ch = gridRows[NAV.rowIdx]?.channels[NAV.colIdx];
+      if (ch) openPlayer(ch.id);
+      return;
+    case 'Escape': case 'GoBack': case 'Backspace':
+      if (activeCategory) { selectCategory(null); return; }
+      break;
+    case 'm': case 'M': case 'ContextMenu':
+      toggleAdmin(); return;
+    default: return;
+  }
+  updateFocus();
+}
+
+function clearFocus() {
+  document.querySelectorAll('.card.focused').forEach(c => c.classList.remove('focused'));
+}
+
+function updateFocus() {
+  clearFocus();
+  document.querySelectorAll('.cat-chip.focused').forEach(c => c.classList.remove('focused'));
+  const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
+  if (card) {
+    card.classList.add('focused');
+    // Scroll card into view
+    card.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+    // Scroll row into view
+    const row = card.closest('.row');
+    if (row) row.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  }
+}
+
+function updateCatFocus(chips) {
+  chips.forEach(c => c.classList.remove('focused'));
+  if (chips[NAV.catIdx]) {
+    chips[NAV.catIdx].classList.add('focused');
+    chips[NAV.catIdx].scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+  }
 }
 
 // ─── PLAYER ───────────────────────────────────────────────────────────────────
+let currentPlayingIndex = -1; // index in currentPlaylist
+let currentPlaylist = [];     // flat list for channel switching
+
 async function openPlayer(channelId) {
   const ch = allChannels.find(c => c.id === channelId);
   if (!ch) return;
 
-  document.getElementById('playerModal').classList.add('open');
+  // Build playlist from current view
+  currentPlaylist = gridRows.flatMap(r => r.channels);
+  currentPlayingIndex = currentPlaylist.findIndex(c => c.id === channelId);
+
+  loadChannel(ch);
+}
+
+function loadChannel(ch) {
+  const overlay = document.getElementById('playerOverlay');
+  overlay.classList.add('open');
+
   document.getElementById('playerName').textContent = ch.name;
   document.getElementById('playerCat').textContent  = ch.group_title || '';
   const logo = document.getElementById('playerLogo');
-  logo.src = ch.logo || '';
-  logo.style.display = ch.logo ? 'block' : 'none';
+  logo.src = ch.logo || ''; logo.style.display = ch.logo ? 'block' : 'none';
   document.getElementById('playerError').classList.remove('show');
+  showHud();
 
+  // Cleanup previous
+  const video = document.getElementById('videoEl');
+  video.pause();
+  video.removeAttribute('src');
+  if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
   if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
 
-  const video = document.getElementById('videoEl');
-  video.src = '';
-  if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
-
-  if (senzaReady && typeof senza !== 'undefined' && senza.SenzaShakaPlayer) {
+  if (senzaReady && senza.SenzaShakaPlayer) {
     try {
       senzaPlayer = new senza.SenzaShakaPlayer(video);
-      await senzaPlayer.load(ch.stream_url);
-      await video.play();
-      await senza.lifecycle.moveToBackground();
-    } catch(err) {
-      console.error('[SenzaShakaPlayer]', err);
-      showPlayerError();
-    }
+      senzaPlayer.load(ch.stream_url).then(() => {
+        video.play();
+        senza.lifecycle.moveToBackground();
+      }).catch(() => showPlayerError());
+    } catch(err) { showPlayerError(); }
   } else {
     const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u');
-
     if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       video._hlsInstance = hls;
@@ -447,63 +668,37 @@ async function openPlayer(channelId) {
   }
 }
 
+function changeChannel(dir) {
+  if (!currentPlaylist.length) return;
+  currentPlayingIndex = (currentPlayingIndex + dir + currentPlaylist.length) % currentPlaylist.length;
+  loadChannel(currentPlaylist[currentPlayingIndex]);
+}
+
+function showHud() {
+  const hud = document.getElementById('playerHud');
+  hud.classList.remove('hidden');
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => hud.classList.add('hidden'), 4000);
+}
+
 function showPlayerError() {
   document.getElementById('playerError').classList.add('show');
 }
 
 async function closePlayer() {
-  document.getElementById('playerModal').classList.remove('open');
+  document.getElementById('playerOverlay').classList.remove('open');
   const video = document.getElementById('videoEl');
-  video.pause(); video.src = '';
+  video.pause(); video.removeAttribute('src'); video.load();
   if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
   if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
-  if (senzaReady && typeof senza !== 'undefined') {
-    try { await senza.lifecycle.moveToForeground(); } catch(e) {}
-  }
+  if (senzaReady) { try { await senza.lifecycle.moveToForeground(); } catch(e) {} }
+  clearTimeout(hudTimer);
 }
 
-// ─── NAVEGAÇÃO POR CONTROLE REMOTO ────────────────────────────────────────────
-function setupRemoteNav() {
-  document.addEventListener('keydown', async (e) => {
-    const playerOpen = document.getElementById('playerModal').classList.contains('open');
-
-    if (playerOpen) {
-      if (['Escape','Backspace','GoBack'].includes(e.key)) {
-        e.preventDefault();
-        await closePlayer();
-      }
-      return;
-    }
-
-    const cards = [...document.querySelectorAll('.channel-card')];
-    if (!cards.length) return;
-
-    const grid = document.querySelector('.channel-grid');
-    const cols = grid ? Math.round(grid.offsetWidth / (150 + 12)) : 5;
-
-    switch(e.key) {
-      case 'ArrowRight': focusedCardIndex = Math.min(focusedCardIndex + 1, cards.length - 1); break;
-      case 'ArrowLeft':  focusedCardIndex = Math.max(focusedCardIndex - 1, 0); break;
-      case 'ArrowDown':  focusedCardIndex = Math.min(focusedCardIndex + cols, cards.length - 1); break;
-      case 'ArrowUp':    focusedCardIndex = Math.max(focusedCardIndex - cols, 0); break;
-      case 'Enter':
-      case 'OK':         cards[focusedCardIndex]?.click(); return;
-      case 'Escape':
-      case 'GoBack':     if (activeCategory) selectCategory(null); return;
-      default: return;
-    }
-
-    e.preventDefault();
-    cards.forEach(c => c.classList.remove('focused'));
-    cards[focusedCardIndex]?.classList.add('focused');
-    cards[focusedCardIndex]?.scrollIntoView({ block:'nearest', behavior:'smooth' });
-  });
-}
-
-// ─── ADMIN (localStorage) ─────────────────────────────────────────────────────
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
 let sources = [];
 
-async function toggleAdmin() {
+function toggleAdmin() {
   const panel = document.getElementById('adminPanel');
   panel.classList.toggle('open');
   if (panel.classList.contains('open')) loadSources();
@@ -522,11 +717,11 @@ function renderSources() {
         <span class="source-item-meta">${s.channelCount?`${s.channelCount} canais`:'Não sincronizado'}${s.lastSyncAt?` • ${new Date(s.lastSyncAt).toLocaleDateString('pt-BR')}`:''}</span>
       </div>
       <div class="source-actions">
-        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="syncSource(${s.id})">↺ Sync</button>
-        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="deleteSource(${s.id})">✕</button>
+        <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px" onclick="syncSource(${s.id})">↺ Sync</button>
+        <button class="btn btn-danger" style="padding:8px 14px;font-size:13px" onclick="deleteSource(${s.id})">✕</button>
       </div>
     </div>
-  `).join('') || '<p style="color:var(--muted);font-size:13px;text-align:center;padding:16px">Nenhuma fonte cadastrada</p>';
+  `).join('') || '<p style="color:var(--muted);font-size:14px;text-align:center;padding:20px">Nenhuma fonte cadastrada</p>';
 }
 
 async function addSource() {
@@ -534,23 +729,14 @@ async function addSource() {
   const url   = document.getElementById('sourceUrl').value.trim();
   if (!label || !url) { showToast('⚠️ Preencha todos os campos'); return; }
   showToast('⏳ Sincronizando...');
-
   try {
-    // Cria a fonte com ID incremental
     const newId = sources.length ? Math.max(...sources.map(s => s.id)) + 1 : 1;
-    const newSource = { id: newId, label, url, channelCount: 0, lastSyncAt: null };
-    sources.push(newSource);
+    sources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });
     setStored(STORAGE_KEYS.sources, sources);
-
-    // Sincroniza imediatamente
     await syncSource(newId);
-
     document.getElementById('sourceLabel').value = '';
     document.getElementById('sourceUrl').value = '';
-  } catch(e) {
-    console.error('Erro ao adicionar fonte:', e);
-    showToast('❌ Erro ao sincronizar');
-  }
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
 async function syncSource(id) {
@@ -560,96 +746,52 @@ async function syncSource(id) {
 
   try {
     let content = '';
-
-    // Tenta via proxy (produção na Vercel)
+    // Try proxy first, then direct
     try {
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(source.url)}`;
-      const res = await fetch(proxyUrl);
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        throw new Error(`Proxy: HTTP ${res.status} ${errBody}`);
-      }
+      const res = await fetch(`/api/proxy?url=${encodeURIComponent(source.url)}`);
+      if (!res.ok) throw new Error(`Proxy: ${res.status}`);
       content = await res.text();
-      // Verifica se o conteúdo não é uma resposta de erro JSON
-      if (content.startsWith('{') && content.includes('"error"')) {
-        throw new Error('Proxy retornou JSON de erro: ' + content);
-      }
-    } catch (proxyErr) {
-      console.warn('[proxy] Falhou, tentando fetch direto:', proxyErr.message);
-      // Fallback: fetch direto (funciona se CORS permitir, ex: GitHub raw)
-      try {
-        const directRes = await fetch(source.url);
-        if (!directRes.ok) throw new Error(`HTTP ${directRes.status}`);
-        content = await directRes.text();
-      } catch (directErr) {
-        throw new Error(`Proxy e fetch direto falharam. Proxy: ${proxyErr.message}. Direto: ${directErr.message}`);
-      }
+      if (content.startsWith('{') && content.includes('"error"')) throw new Error(content);
+    } catch(proxyErr) {
+      console.warn('[proxy]', proxyErr.message);
+      const res = await fetch(source.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      content = await res.text();
     }
 
-    if (!content || content.length < 10) {
-      showToast('⚠️ Conteúdo vazio retornado');
-      return;
-    }
-
-    // Parse client-side
     const parsed = parseM3U(content);
-    if (!parsed.length) {
-      showToast('⚠️ Nenhum canal encontrado na playlist');
-      console.warn('Conteúdo recebido (primeiros 500 chars):', content.substring(0, 500));
-      return;
-    }
+    if (!parsed.length) { showToast('⚠️ Nenhum canal encontrado'); return; }
 
-    // Remove canais antigos desta fonte
     let stored = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id);
-
-    // Gera IDs e adiciona novos canais
     let nextId = stored.length ? Math.max(...stored.map(c => c.id)) + 1 : 1;
-    const newChannels = parsed.map(ch => ({
-      id: nextId++,
-      name: ch.name,
-      logo: ch.logo || null,
-      group_title: ch.groupTitle,
-      stream_url: ch.url,
-      tvg_id: ch.tvgId || null,
-      tvg_name: ch.tvgName || null,
-      source_id: id,
-    }));
-
-    stored = stored.concat(newChannels);
+    stored = stored.concat(parsed.map(ch => ({
+      id: nextId++, name: ch.name, logo: ch.logo || null,
+      group_title: ch.groupTitle, stream_url: ch.url,
+      tvg_id: ch.tvgId || null, tvg_name: ch.tvgName || null, source_id: id,
+    })));
     setStored(STORAGE_KEYS.channels, stored);
 
-    // Atualiza metadados da fonte
     source.channelCount = parsed.length;
     source.lastSyncAt = new Date().toISOString();
     setStored(STORAGE_KEYS.sources, sources);
 
-    // Conta categorias únicas
-    const catCount = new Set(parsed.map(c => c.groupTitle)).size;
-    showToast(`✅ ${parsed.length} canais em ${catCount} categorias`);
-    loadSources();
-    loadData();
-  } catch(e) {
-    console.error('Erro ao sincronizar:', e);
-    showToast('❌ ' + e.message);
-  }
+    const cats = new Set(parsed.map(c => c.groupTitle)).size;
+    showToast(`✅ ${parsed.length} canais em ${cats} categorias`);
+    loadSources(); loadData();
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
 async function deleteSource(id) {
   if (!confirm('Remover esta fonte e todos os seus canais?')) return;
   sources = sources.filter(s => s.id !== id);
   setStored(STORAGE_KEYS.sources, sources);
-
-  const channels = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id);
-  setStored(STORAGE_KEYS.channels, channels);
-
-  showToast('🗑️ Removida');
-  loadSources();
-  loadData();
+  setStored(STORAGE_KEYS.channels, getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id));
+  showToast('🗑️ Removida'); loadSources(); loadData();
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 function showToast(msg) {
-  document.querySelectorAll('.toast').forEach(t => t.remove()); // remove toasts antigos
+  document.querySelectorAll('.toast').forEach(t => t.remove());
   const el = document.createElement('div');
   el.className = 'toast'; el.textContent = msg;
   document.body.appendChild(el);

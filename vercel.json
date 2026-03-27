@@ -7,7 +7,7 @@
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://senza-sdk.streaming.synamedia.com https://fonts.googleapis.com https://fonts.gstatic.com; media-src *; img-src *; connect-src *"
+          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://senza-sdk.streaming.synamedia.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src * blob: data:; img-src * data: blob:; connect-src *"
         }
       ]
     }
