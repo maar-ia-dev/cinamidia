@@ -1298,19 +1298,27 @@
           } catch (err) { }
         } else {
           // HLS/TS: O Remote Player do Senza NÃO suporta. 
-          // Para HLS, OBRIGATORIAMENTE usamos o browser local (Foreground Mode).
+          // Para HLS, usamos o browser local (Foreground Mode).
           try {
+            await senza.lifecycle.moveToForeground(); 
+            window.focus();
             await senza.remotePlayer.stop();
             await senza.remotePlayer.unload();
             await senza.remotePlayer.detach(); 
-            await senza.lifecycle.moveToForeground(); // Garante que a UI está visível e com som liberado
             
-            // Força retomada do áudio se o browser bloqueou
+            // Choque no AudioContext do browser
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (AudioCtx) {
                const ctx = new AudioCtx();
                if (ctx.state === 'suspended') ctx.resume();
             }
+
+            // Loop para garantir volume e estado desmutado
+            let f = 0; const fi = setInterval(() => {
+                video.muted = false; video.volume = 1.0;
+                if (++f > 15) clearInterval(fi);
+            }, 600);
+
             showToast('🌐 Senza SDK: HLS + Foreground Mode');
           } catch (e) { }
         }
