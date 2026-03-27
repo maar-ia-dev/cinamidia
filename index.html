@@ -816,7 +816,18 @@
 
     // ─── M3U PARSER ───────────────────────────────────────────────────────────────
     function parseM3U(content) {
-      const lines = content.split('\n').map(l => l.trim());
+      const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      // Se não começa com #EXTM3U e parece ser apenas um link direto
+      if (!content.includes('#EXTM3U') && lines.length === 1 && lines[0].startsWith('http')) {
+        return [{
+          name: 'Canal Único',
+          logo: '',
+          groupTitle: 'Importados',
+          url: lines[0]
+        }];
+      }
+
       const result = [];
       for (let i = 0; i < lines.length; i++) {
         if (!lines[i].startsWith('#EXTINF')) continue;
