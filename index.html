@@ -906,6 +906,7 @@
     window.addEventListener('load', async () => {
       await initSenza();
       await loadData();
+      await checkAutoSetup(); 
       setupNavigation();
       updateClock();
       setInterval(updateClock, 30000);
@@ -916,6 +917,24 @@
         if (el) el.addEventListener('input', updateXtreamPreview);
       });
     });
+
+    async function checkAutoSetup() {
+      const currentSources = await getStored(STORAGE_KEYS.sources);
+      if (currentSources.length === 0) {
+        // Primeiro acesso: Configura as listas integradas automaticamente
+        console.log('[AutoSetup] Configurando listas padrão...');
+        
+        // Garante que os canais serão verificados (conforme pedido)
+        const valCheckbox = document.getElementById('validateChannels');
+        if (valCheckbox) valCheckbox.checked = true;
+
+        // Adiciona e Sincroniza as listas (padrão)
+        await handleDefaultUpload('br_categorizada.m3u', 'CinaMídia BR (Principal)');
+        await handleDefaultUpload('dash_test.m3u', 'Teste DASH (Senza/Shaka)');
+        
+        showToast('🚀 Configuração inicial concluída!');
+      }
+    }
 
     // ─── DATA ─────────────────────────────────────────────────────────────────────
     async function loadData() {
