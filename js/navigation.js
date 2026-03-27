@@ -94,7 +94,7 @@ function handleKey(e) {
         e.preventDefault();
         const video = document.getElementById('videoEl');
         video.volume = Math.max(0, video.volume - 0.1);
-        video.showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
+        showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
         showHud();
         break;
       }
