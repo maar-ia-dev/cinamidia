@@ -9,6 +9,7 @@
     rel="stylesheet" />
   <script src="https://senza-sdk.streaming.synamedia.com/latest/bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
 
   <style>
     :root {
@@ -884,10 +885,27 @@
   </style>
 
   <script>
-    // ─── CLIENT-SIDE STORAGE ──────────────────────────────────────────────────────
+    // ─── CLIENT-SIDE STORAGE (IndexedDB) ──────────────────────────────────────────
     const STORAGE_KEYS = { sources: 'cinamidia_sources', channels: 'cinamidia_channels' };
-    function getStored(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
-    function setStored(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+    async function getStored(key) {
+      try {
+        let data = await idbKeyval.get(key);
+        if (!data) {
+          const legacy = localStorage.getItem(key);
+          if (legacy) {
+            data = JSON.parse(legacy);
+            await idbKeyval.set(key, data);
+            console.log(`[Storage] Migrated ${key} to IndexedDB`);
+          } else {
+            data = [];
+          }
+        }
+        return data || [];
+      } catch (e) { return []; }
+    }
+    async function setStored(key, data) {
+      try { await idbKeyval.set(key, data); } catch (e) { console.error('Storage error', e); }
+    }
 
     // ─── M3U PARSER ───────────────────────────────────────────────────────────────
     function parseM3U(content) {
@@ -950,7 +968,7 @@
     // ─── BOOT ─────────────────────────────────────────────────────────────────────
     window.addEventListener('load', async () => {
       await initSenza();
-      loadData();
+      await loadData();
       setupNavigation();
       updateClock();
       setInterval(updateClock, 30000);
@@ -963,8 +981,8 @@
     });
 
     // ─── DATA ─────────────────────────────────────────────────────────────────────
-    function loadData() {
-      allChannels = getStored(STORAGE_KEYS.channels);
+    async function loadData() {
+      allChannels = await getStored(STORAGE_KEYS.channels);
       const catMap = {};
       allChannels.forEach(ch => {
         const g = ch.group_title || 'Outros';
@@ -1324,8 +1342,8 @@
       if (panel.classList.contains('open')) loadSources();
     }
 
-    function loadSources() {
-      sources = getStored(STORAGE_KEYS.sources);
+    async function loadSources() {
+      sources = await getStored(STORAGE_KEYS.sources);
       renderSources();
     }
 
@@ -1366,7 +1384,7 @@
       try {
         const newId = sources.length ? Math.max(...sources.map(s => s.id)) + 1 : 1;
         sources.push({ id: newId, label, url, channelCount: 0, lastSyncAt: null });
-        setStored(STORAGE_KEYS.sources, sources);
+        await setStored(STORAGE_KEYS.sources, sources);
         await syncSource(newId);
         // Limpa campos
         ['sourceLabel', 'sourceUrl', 'xtreamLabel', 'xtreamHost', 'xtreamUser', 'xtreamPass']
@@ -1392,7 +1410,7 @@
           // We store it with a dummy URL to bypass fetch in future syncs, though local files don't update automatically
           const sourceData = { id: newId, label, url: 'file://local', channelCount: 0, lastSyncAt: null };
           sources.push(sourceData);
-          setStored(STORAGE_KEYS.sources, sources);
+          await setStored(STORAGE_KEYS.sources, sources);
 
           // Pass content directly to the parser logic
           await processM3UContent(newId, content);
@@ -1437,22 +1455,22 @@
         if (!parsed.length) { showToast('⚠️ Nenhum canal válido encontrado'); return; }
       }
 
-      let stored = getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== sourceId);
+      let stored = (await getStored(STORAGE_KEYS.channels)).filter(ch => ch.source_id !== sourceId);
       let nextId = stored.length ? Math.max(...stored.map(c => c.id)) + 1 : 1;
       stored = stored.concat(parsed.map(ch => ({
         id: nextId++, name: ch.name, logo: ch.logo || null,
         group_title: ch.groupTitle, stream_url: ch.url,
         tvg_id: ch.tvgId || null, tvg_name: ch.tvgName || null, source_id: sourceId,
       })));
-      setStored(STORAGE_KEYS.channels, stored);
+      await setStored(STORAGE_KEYS.channels, stored);
 
       source.channelCount = parsed.length;
       source.lastSyncAt = new Date().toISOString();
-      setStored(STORAGE_KEYS.sources, sources);
+      await setStored(STORAGE_KEYS.sources, sources);
 
       const cats = new Set(parsed.map(c => c.groupTitle)).size;
       showToast(`✅ ${parsed.length} canais guardados em ${cats} categorias`);
-      loadSources(); loadData();
+      await loadSources(); await loadData();
     }
 
     // ─── CHANNEL VALIDATION ────────────────────────────────────────────────────
@@ -1530,9 +1548,9 @@
     async function deleteSource(id) {
       if (!confirm('Remover esta fonte e todos os seus canais?')) return;
       sources = sources.filter(s => s.id !== id);
-      setStored(STORAGE_KEYS.sources, sources);
-      setStored(STORAGE_KEYS.channels, getStored(STORAGE_KEYS.channels).filter(ch => ch.source_id !== id));
-      showToast('🗑️ Removida'); loadSources(); loadData();
+      await setStored(STORAGE_KEYS.sources, sources);
+      await setStored(STORAGE_KEYS.channels, (await getStored(STORAGE_KEYS.channels)).filter(ch => ch.source_id !== id));
+      showToast('🗑️ Removida'); await loadSources(); await loadData();
     }
 
     // ─── TOAST ────────────────────────────────────────────────────────────────────
