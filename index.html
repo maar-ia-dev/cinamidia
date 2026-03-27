@@ -762,6 +762,11 @@
   </div>
 
   <style>
+    .sync-progress { width: 100%; height: 6px; background: var(--surface2); border-radius: 3px; margin-top: 16px; overflow: hidden; display: none; }
+    .sync-progress.active { display: block; }
+    .sync-progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width .2s; width: 0%; }
+    .sync-status { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 8px; text-align: center; }
+
     .admin-tab {
       padding: 10px 24px;
       background: none;
@@ -908,6 +913,7 @@
     ${categories.map(c => `
       <div class="cat-item ${activeCategory === c.id ? 'active' : ''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')">${h(c.name)}</div>
     `).join('')}
+    <div class="cat-item" data-cat="config" onclick="toggleAdmin()" style="margin-top:20px; color:var(--accent); font-weight:bold;">⚙️ Configurações</div>
   `;
     }
 
@@ -1041,7 +1047,27 @@
       // ─ ADMIN PANEL open ─
       if (adminOpen) {
         if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
-          e.preventDefault(); toggleAdmin();
+          e.preventDefault(); toggleAdmin(); return;
+        }
+
+        const focusables = [...document.querySelectorAll('#adminPanel button, #adminPanel input, #adminPanel select')]
+          .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled);
+          
+        if (!focusables.length) return;
+
+        let idx = focusables.indexOf(document.activeElement);
+        if (idx === -1) idx = 0;
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const nextIdx = (idx + 1) % focusables.length;
+          focusables[nextIdx].focus();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const prevIdx = (idx - 1 + focusables.length) % focusables.length;
+          focusables[prevIdx].focus();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
         }
         return;
       }
@@ -1187,6 +1213,10 @@
       document.getElementById('playerError').classList.remove('show');
       showHud();
 
+      if (senzaReady && typeof senza !== 'undefined') {
+        try { senza.lifecycle.moveToForeground(); } catch (e) { }
+      }
+
       // Cleanup previous
       const video = document.getElementById('videoEl');
       video.pause();
@@ -1199,7 +1229,6 @@
           senzaPlayer = new senza.SenzaShakaPlayer(video);
           senzaPlayer.load(ch.stream_url).then(() => {
             video.play();
-            senza.lifecycle.moveToBackground();
           }).catch(() => showPlayerError());
         } catch (err) { showPlayerError(); }
       } else {
@@ -1294,7 +1323,16 @@
     function toggleAdmin() {
       const panel = document.getElementById('adminPanel');
       panel.classList.toggle('open');
-      if (panel.classList.contains('open')) loadSources();
+      if (panel.classList.contains('open')) {
+        loadSources();
+        setTimeout(() => {
+          const first = document.querySelector('#adminPanel button, #adminPanel input');
+          if (first) first.focus();
+        }, 50);
+      } else {
+        document.activeElement?.blur();
+        updateFocus();
+      }
     }
 
     async function loadSources() {
