@@ -11,6 +11,7 @@
   Em produção via NPM: import { init, uiReady, SenzaShakaPlayer, lifecycle } from "senza-sdk"
 -->
 <script src="https://senza-sdk.streaming.synamedia.com/latest/bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
 
 <style>
   :root {
@@ -250,7 +251,7 @@
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // Em produção, defina window.CINAMIDIA_API antes deste script, ou use env inject da Vercel
-const API = window.CINAMIDIA_API || 'https://cinamidia-api.vercel.app/api';
+const API = window.CINAMIDIA_API || '/api';
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let allChannels = [];
@@ -410,9 +411,26 @@ async function openPlayer(channelId) {
     }
   } else {
     // ── MODO BROWSER (Vercel preview / desktop) ───────────────────────────────
-    video.src = ch.stream_url;
-    video.onerror = () => showPlayerError();
-    video.play().catch(() => showPlayerError());
+    const isHLS = ch.stream_url.includes('.m3u8') || ch.stream_url.includes('type=m3u');
+
+    if (isHLS && Hls.isSupported()) {
+      // Chrome/Firefox: usa hls.js para streams HLS
+      const hls = new Hls({ enableWorker: true });
+      video._hlsInstance = hls;
+      hls.loadSource(ch.stream_url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => showPlayerError()));
+      hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) showPlayerError(); });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari: suporte nativo a HLS
+      video.src = ch.stream_url;
+      video.play().catch(() => showPlayerError());
+    } else {
+      // Outros formatos (MP4, TS direto, etc.)
+      video.src = ch.stream_url;
+      video.onerror = () => showPlayerError();
+      video.play().catch(() => showPlayerError());
+    }
   }
 }
 
@@ -424,6 +442,8 @@ async function closePlayer() {
   document.getElementById('playerModal').classList.remove('open');
   const video = document.getElementById('videoEl');
   video.pause(); video.src = '';
+  // Destroi instância hls.js se existir
+  if (video._hlsInstance) { video._hlsInstance.destroy(); video._hlsInstance = null; }
   if (senzaPlayer) { try { senzaPlayer.destroy(); } catch(e){} senzaPlayer = null; }
   // Volta a foreground ao fechar o player
   if (senzaReady && typeof senza !== 'undefined') {

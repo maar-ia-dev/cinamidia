@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://cinamidia-api.vercel.app/api/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -7,7 +13,7 @@
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://senza-sdk.streaming.synamedia.com https://fonts.googleapis.com https://fonts.gstatic.com; media-src *; img-src *; connect-src *"
+          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://senza-sdk.streaming.synamedia.com https://fonts.googleapis.com https://fonts.gstatic.com; media-src *; img-src *; connect-src *"
         }
       ]
     }
