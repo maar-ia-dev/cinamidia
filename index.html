@@ -1081,21 +1081,23 @@
             e.preventDefault(); changeChannel(-1); break;
           case 'ArrowRight':
             e.preventDefault(); changeChannel(1); break;
-          case 'ArrowUp': case 'ArrowDown':
+          case 'Enter': case 'OK':
             e.preventDefault(); showHud(); break;
-          case '+': case '=': case 'VolumeUp': {
+          case 'ArrowUp': case '+': case '=': case 'VolumeUp': {
             e.preventDefault();
             const video = document.getElementById('videoEl');
             video.volume = Math.min(1, video.volume + 0.1);
             video.muted = false;
             showToast(`🔊 Volume: ${Math.round(video.volume * 100)}%`);
+            showHud();
             break;
           }
-          case '-': case '_': case 'VolumeDown': {
+          case 'ArrowDown': case '-': case '_': case 'VolumeDown': {
             e.preventDefault();
             const video = document.getElementById('videoEl');
             video.volume = Math.max(0, video.volume - 0.1);
             showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
+            showHud();
             break;
           }
           case 'm': case 'M': case 'AudioVolumeMute': {
