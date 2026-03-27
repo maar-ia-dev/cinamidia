@@ -134,7 +134,7 @@ body {
   flex-wrap: wrap;
   overflow-x: hidden;
   overflow-y: visible;
-  padding-bottom: 80px; 
+  padding: 30px 48px 100px;
   gap: 24px;
 }
 
