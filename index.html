@@ -1285,24 +1285,30 @@
 
       // Lógica de Player para Senza SDK (Smart TVs)
       if (senzaReady && typeof senza !== 'undefined') {
-        const SenzaPlayerClass = (senza.shaka && senza.shaka.Player) || (window.shaka && window.shaka.Player);
-        // O Shaka Player da Senza suporta tanto DASH canto HLS!
+        const SenzaPlayerClass = (senza.ShakaPlayer) || (senza.shaka && senza.shaka.Player) || (window.shaka && window.shaka.Player);
+        // O Shaka Player da Senza suporta tanto DASH quanto HLS!
         if (SenzaPlayerClass) {
           try {
             // Se for HLS, o SDK da Senza recomenda estar em Foreground para processar localmente
             if (!isDASH) await senza.lifecycle.moveToForeground();
             
-            // Força volume no hardware antes de começar
+            // Força volume máximo no hardware
             try { await senza.remotePlayer.setVolume(1.0); } catch (e) { }
 
-            senzaPlayer = new SenzaPlayerClass(video);
+            senzaPlayer = new SenzaPlayerClass(); 
+            // Shaka Player do Senza se vincula ao video via .attach(videoEl)
+            if (senzaPlayer.attach) {
+               await senzaPlayer.attach(video);
+            }
 
-            // Adiciona listener de tracks para garantir áudio (visto no sample banner.js)
+            // Garante trilha de áudio conforme sample banner.js
             const trackHandler = () => {
-              try { if (senzaPlayer && senzaPlayer.getAudioLanguages) {
-                const langs = senzaPlayer.getAudioLanguages();
-                if (langs && langs.length > 0) senzaPlayer.selectAudioLanguage(langs[0]);
-              }} catch (e) { }
+              try {
+                if (senzaPlayer && senzaPlayer.selectAudioLanguage) {
+                   const tracks = (senzaPlayer.getAudioLanguages ? senzaPlayer.getAudioLanguages() : []);
+                   if (tracks.length > 0) senzaPlayer.selectAudioLanguage(tracks[0]);
+                }
+              } catch (e) { }
             };
             senza.remotePlayer.addEventListener("tracksupdate", trackHandler);
             
@@ -1310,11 +1316,10 @@
             video.volume = 1; video.muted = false;
             await video.play();
             
-            showToast(`📡 Senza SDK: ${isDASH ? 'DASH' : 'HLS'} Mode`);
+            showToast(`📡 Senza SDK: ${isDASH ? 'DASH' : 'HLS'} Mode (Optimized)`);
             return;
           } catch (err) {
             console.error('Senza Player Error:', err);
-            // Se falhar, tentamos o fallback abaixo
           }
         }
       }
