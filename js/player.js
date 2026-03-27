@@ -205,6 +205,7 @@ function loadWithHls(video, streamUrls, options = {}) {
       if (options.logPrefix) {
         console.error(`${options.logPrefix} error:`, data);
       }
+      logVideoState(video, `${options.logPrefix || '[HLS]'} fatal=${Boolean(data?.fatal)}`);
 
       if (!data?.fatal) return;
 
@@ -229,11 +230,31 @@ function loadWithHls(video, streamUrls, options = {}) {
   start();
 }
 
+function logVideoState(video, label) {
+  const mediaError = video.error
+    ? {
+        code: video.error.code,
+        message: video.error.message || '',
+      }
+    : null;
+
+  console.log(`[Video] ${label}`, {
+    currentSrc: video.currentSrc,
+    readyState: video.readyState,
+    networkState: video.networkState,
+    paused: video.paused,
+    ended: video.ended,
+    muted: video.muted,
+    volume: video.volume,
+    error: mediaError,
+  });
+}
+
 async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStreamUrl) {
   await senza.lifecycle.moveToForeground();
-  await cleanupRemotePlayer();
 
   const hlsUrls = [originalStreamUrl, fallbackStreamUrl];
+  console.log('[HLS foreground] candidate URLs:', hlsUrls.filter(Boolean));
 
   if (window.Hls && window.Hls.isSupported()) {
     loadWithHls(video, hlsUrls, {
@@ -241,8 +262,10 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
       beforePlay: () => {
         video.muted = false;
         video.volume = 1;
+        logVideoState(video, 'before play');
       },
-      onManifestParsed: () => {
+      onManifestParsed: currentUrl => {
+        logVideoState(video, `manifest parsed (${currentUrl})`);
         showToast('HLS experimental em foreground');
       },
       playErrorMessage: 'HLS carregou, mas o play falhou em foreground.',
@@ -255,6 +278,7 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   video.muted = false;
   video.volume = 1;
   await video.play();
+  logVideoState(video, 'native hls play');
   showToast('HLS nativo em foreground');
   return;
 
