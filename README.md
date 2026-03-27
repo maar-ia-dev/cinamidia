@@ -18,6 +18,14 @@ Interface IPTV moderna, rápida e otimizada para o uso em Smart TVs e Navegadore
 - **Validação de Canais**: Opção de sincronizar apenas canais que estejam online no momento.
 - **HUD Dinâmico**: Controle de volume (Setas Cima/Baixo), mute (M) e troca de canais rápida (Cima/Baixo no grid).
 
+## ⚙️ Funcionamento Padrão
+1. **Primeiro Acesso (Auto-Setup)**: Caso o aplicativo detecte que não existem canais salvos (IndexedDB vazio), ele carrega automaticamente as strings de fonte configuradas no `js/app.js` (ex: Brasil Categorizada e Teste DASH) para garantir que o usuário já tenha conteúdo ao abrir o app.
+2. **Gestão de Fontes**: No ícone de engrenagem (Rodapé da Sidebar), o usuário pode gerenciar suas fontes, permitindo:
+   - Adicionar novas listas M3U por URL.
+   - Configurar fontes Xtream API (Host, User, Pass).
+   - Remover fontes existentes (o que limpa todos os canais associados daquela fonte do banco de dados).
+3. **Validação em Batch**: Se a opção "Validar Canais" estiver ativa ao adicionar uma fonte, o sistema fará um teste de conexão em cada canal antes de salvá-lo, garantindo uma lista limpa e 100% funcional.
+
 ## 🛠️ Estrutura do Projeto
 
 ```text
