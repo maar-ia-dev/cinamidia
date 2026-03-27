@@ -818,10 +818,12 @@
     function parseM3U(content) {
       const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       
-      // Se não começa com #EXTM3U e parece ser apenas um link direto
-      if (!content.includes('#EXTM3U') && lines.length === 1 && lines[0].startsWith('http')) {
+      // Se já reconhece como M3U...
+      if (!content.includes('#EXTM3U') && content.includes('#EXTINF')) {
+        // Segue lógica normal abaixo
+      } else if (!content.includes('#EXTM3U') && lines.length === 1 && lines[0].startsWith('http')) {
         return [{
-          name: 'Canal Único',
+          name: 'Canal Importado',
           logo: '',
           groupTitle: 'Importados',
           url: lines[0]
@@ -1509,6 +1511,17 @@
       const statusEl = document.getElementById('syncStatus');
 
       let parsed = parseM3U(content);
+      
+      // Fallback: Se o parser M3U não achou nada, mas a URL da fonte é claramente um stream (.mpd ou .m3u8)
+      if (!parsed.length && source && source.url && (source.url.toLowerCase().includes('.mpd') || source.url.toLowerCase().includes('.m3u8'))) {
+        parsed = [{
+          name: source.label || 'Canal Importado',
+          logo: '',
+          groupTitle: 'Importados',
+          url: source.url
+        }];
+      }
+
       if (!parsed.length) { showToast('⚠️ Nenhum canal encontrado no arquivo'); return; }
 
       showToast(`📋 ${parsed.length} canais encontrados`);
