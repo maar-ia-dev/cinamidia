@@ -199,6 +199,31 @@ function loadWithHls(video, streamUrls, options = {}) {
       if (options.logPrefix) {
         console.log(`${options.logPrefix} audio tracks:`, data?.audioTracks || []);
       }
+
+      if ((data?.audioTracks || []).length > 0) {
+        try {
+          hls.audioTrack = 0;
+          if (options.logPrefix) {
+            console.log(`${options.logPrefix} forced audioTrack=0`, data.audioTracks[0]);
+          }
+        } catch (e) {
+          if (options.logPrefix) {
+            console.warn(`${options.logPrefix} failed to force audio track:`, e);
+          }
+        }
+      }
+    });
+
+    hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
+      if (options.logPrefix) {
+        console.log(`${options.logPrefix} audio track switched:`, data);
+      }
+    });
+
+    hls.on(Hls.Events.AUDIO_TRACK_LOADED, (_event, data) => {
+      if (options.logPrefix) {
+        console.log(`${options.logPrefix} audio track loaded:`, data);
+      }
     });
 
     hls.on(Hls.Events.ERROR, (_event, data) => {
