@@ -1283,44 +1283,26 @@
       const isDASH = streamUrl.includes('.mpd');
       const isHLS = streamUrl.includes('.m3u8') || streamUrl.includes('type=m3u') || streamUrl.includes('output=hls') || streamUrl.includes('output=ts');
 
-      // Se estiver no Senza...
+      // Lógica de Player para Senza SDK (Smart TVs)
       if (senzaReady && typeof senza !== 'undefined') {
         const SenzaPlayerClass = (senza.shaka && senza.shaka.Player) || (window.shaka && window.shaka.Player);
-        if (isDASH && SenzaPlayerClass) {
-          // DASH: Usa o SDK deles para performance máxima na TV
+        // O Shaka Player da Senza suporta tanto DASH canto HLS!
+        if (SenzaPlayerClass) {
           try {
+            // Se for HLS, o SDK da Senza recomenda estar em Foreground para processar localmente
+            if (!isDASH) await senza.lifecycle.moveToForeground();
+            
             senzaPlayer = new SenzaPlayerClass(video);
             await senzaPlayer.load(streamUrl);
             video.volume = 1; video.muted = false;
             await video.play();
-            showToast('📡 Senza SDK: DASH + Background Mode');
-            return;
-          } catch (err) { }
-        } else {
-          // HLS/TS: O Remote Player do Senza NÃO suporta. 
-          // Para HLS, usamos o browser local (Foreground Mode).
-          try {
-            await senza.lifecycle.moveToForeground(); 
-            window.focus();
-            await senza.remotePlayer.stop();
-            await senza.remotePlayer.unload();
-            await senza.remotePlayer.detach(); 
             
-            // Choque no AudioContext do browser
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (AudioCtx) {
-               const ctx = new AudioCtx();
-               if (ctx.state === 'suspended') ctx.resume();
-            }
-
-            // Loop para garantir volume e estado desmutado
-            let f = 0; const fi = setInterval(() => {
-                video.muted = false; video.volume = 1.0;
-                if (++f > 15) clearInterval(fi);
-            }, 600);
-
-            showToast('🌐 Senza SDK: HLS + Foreground Mode');
-          } catch (e) { }
+            showToast(`📡 Senza SDK: ${isDASH ? 'DASH' : 'HLS'} Mode`);
+            return;
+          } catch (err) {
+            console.error('Senza Player Error:', err);
+            // Se falhar, tentamos o fallback abaixo
+          }
         }
       }
 
