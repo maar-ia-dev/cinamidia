@@ -1074,17 +1074,37 @@
 
       // ─ PLAYER open ─
       if (playerOpen) {
-        e.preventDefault();
         switch (e.key) {
           case 'Escape': case 'Backspace': case 'GoBack':
-            closePlayer(); break;
+            e.preventDefault(); closePlayer(); break;
           case 'ArrowLeft':
-            changeChannel(-1); break;
+            e.preventDefault(); changeChannel(-1); break;
           case 'ArrowRight':
-            changeChannel(1); break;
+            e.preventDefault(); changeChannel(1); break;
           case 'ArrowUp': case 'ArrowDown':
-            // Show/hide HUD
-            showHud(); break;
+            e.preventDefault(); showHud(); break;
+          case '+': case '=': case 'VolumeUp': {
+            e.preventDefault();
+            const video = document.getElementById('videoEl');
+            video.volume = Math.min(1, video.volume + 0.1);
+            video.muted = false;
+            showToast(`🔊 Volume: ${Math.round(video.volume * 100)}%`);
+            break;
+          }
+          case '-': case '_': case 'VolumeDown': {
+            e.preventDefault();
+            const video = document.getElementById('videoEl');
+            video.volume = Math.max(0, video.volume - 0.1);
+            showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
+            break;
+          }
+          case 'm': case 'M': case 'AudioVolumeMute': {
+            e.preventDefault();
+            const video = document.getElementById('videoEl');
+            video.muted = !video.muted;
+            showToast(video.muted ? '🔇 Áudio Mudo' : '🔊 Áudio Ativado');
+            break;
+          }
         }
         return;
       }
