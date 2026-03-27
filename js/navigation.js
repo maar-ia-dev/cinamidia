@@ -86,6 +86,9 @@ function handleKey(e) {
         const video = document.getElementById('videoEl');
         video.volume = Math.min(1, video.volume + 0.1);
         video.muted = false;
+        if (typeof senza !== 'undefined' && senza.remotePlayer) {
+          try { senza.remotePlayer.setVolume(video.volume); } catch(e){}
+        }
         showToast(`🔊 Volume: ${Math.round(video.volume * 100)}%`);
         showHud();
         break;
@@ -94,6 +97,9 @@ function handleKey(e) {
         e.preventDefault();
         const video = document.getElementById('videoEl');
         video.volume = Math.max(0, video.volume - 0.1);
+        if (typeof senza !== 'undefined' && senza.remotePlayer) {
+          try { senza.remotePlayer.setVolume(video.volume); } catch(e){}
+        }
         showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
         showHud();
         break;
@@ -102,6 +108,9 @@ function handleKey(e) {
         e.preventDefault();
         const video = document.getElementById('videoEl');
         video.muted = !video.muted;
+        if (typeof senza !== 'undefined' && senza.remotePlayer) {
+          try { senza.remotePlayer.setVolume(video.muted ? 0 : video.volume); } catch(e){}
+        }
         showToast(video.muted ? '🔇 Áudio Mudo' : '🔊 Áudio Ativado');
         break;
       }
