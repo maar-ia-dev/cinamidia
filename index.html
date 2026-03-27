@@ -244,8 +244,19 @@
       opacity: 1;
     }
 
-    .card.focused .play-icon {
-      transform: scale(1);
+    /* ── Global Sync Bar ── */
+    .global-sync-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10000;
+      height: 4px; background: rgba(0,0,0,0.4); display: none;
+    }
+    .global-sync-bar.active { display: block; }
+    .global-sync-progress { height: 100%; background: var(--accent); width: 0%; transition: width .3s; box-shadow: 0 0 10px var(--accent); }
+    .global-sync-status { 
+      position: absolute; top: 10px; right: 20px; 
+      background: rgba(0,0,0,0.8); padding: 6px 14px; 
+      border-radius: 20px; font-size: 11px; font-weight: bold; 
+      color: #fff; border: 1px solid var(--border);
+      pointer-events: none;
     }
 
     /* ── Channel label under focused card ── */
@@ -633,6 +644,12 @@
     </div>
   </div>
 
+  <!-- GLOBAL SYNC NOTIFY (fixed top) -->
+  <div class="global-sync-bar" id="globalSyncBar">
+    <div class="global-sync-progress" id="globalSyncInner"></div>
+    <div class="global-sync-status" id="globalSyncLabel">Sincronizando canais...</div>
+  </div>
+
   <!-- PLAYER (fullscreen) -->
   <div class="player-overlay" id="playerOverlay">
     <video id="videoEl" width="1920" height="1080" playsinline></video>
@@ -805,6 +822,16 @@
 
     .admin-tab:hover {
       color: var(--text);
+    }
+
+    /* Foco D-Pad no Admin */
+    #adminPanel button:focus, 
+    #adminPanel input:focus, 
+    #adminPanel select:focus {
+      outline: 3px solid var(--accent) !important;
+      outline-offset: 2px;
+      box-shadow: 0 0 15px rgba(255, 171, 0, 0.4) !important;
+      border-color: var(--accent) !important;
     }
   </style>
 
@@ -1117,8 +1144,9 @@
           e.preventDefault();
           const prevIdx = (idx - 1 + focusables.length) % focusables.length;
           focusables[prevIdx].focus();
-        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        } else if (e.key === 'Enter' || e.key === 'OK') {
           e.preventDefault();
+          document.activeElement?.click();
         }
         return;
       }
@@ -1449,14 +1477,16 @@
       const panel = document.getElementById('adminPanel');
       panel.classList.toggle('open');
       if (panel.classList.contains('open')) {
+        NAV.zone = 'admin';
         loadSources();
         setTimeout(() => {
-          const first = document.querySelector('#adminPanel button, #adminPanel input');
+          const first = document.querySelector('#adminPanel .admin-tab.active, #adminPanel button, #adminPanel input');
           if (first) first.focus();
-        }, 50);
+        }, 100);
       } else {
+        NAV.zone = 'categories';
         document.activeElement?.blur();
-        updateFocus();
+        updateCatFocus([...document.querySelectorAll('.cat-item')]);
       }
     }
 
@@ -1585,43 +1615,74 @@
 
       showToast(`📋 ${parsed.length} canais encontrados`);
 
+      // 1. SALVA IMEDIATAMENTE para o usuário ver os canais rápido
+      await saveChannelsToStorage(sourceId, parsed);
+      await loadSources(); await loadData();
+
+      // 2. VALIDAÇÃO (SE ATIVADO)
       if (shouldValidate) {
         progressEl?.classList.add('active');
+        document.getElementById('globalSyncBar')?.classList.add('active');
         let okCount = 0, failCount = 0;
 
         parsed = await validateChannelsBatch(parsed, (done, total, status, name) => {
           if (status === 'ok') okCount++; else failCount++;
           const pct = Math.round((done / total) * 100);
           if (barEl) barEl.style.width = pct + '%';
-          if (statusEl) statusEl.textContent = `Verificando: ${done}/${total} — ✅ ${okCount}  ❌ ${failCount} — ${name}`;
+          if (statusEl) statusEl.textContent = `Validando: ${done}/${total} — ✅ ${okCount} ❌ ${failCount} — ${name}`;
+          
+          const gBar = document.getElementById('globalSyncInner');
+          const gLab = document.getElementById('globalSyncLabel');
+          if (gBar) gBar.style.width = pct + '%';
+          if (gLab) gLab.textContent = `Validando Canais: ${pct}% (${done}/${total})`;
         });
 
         progressEl?.classList.remove('active');
+        document.getElementById('globalSyncBar')?.classList.remove('active');
         if (statusEl) statusEl.textContent = '';
 
-        if (!parsed.length) { showToast('⚠️ Nenhum canal válido encontrado'); return; }
+        if (!parsed.length) { 
+          showToast('⚠️ Nenhum canal válido encontrado. Mantendo originais.'); 
+        } else {
+          // 3. ATUALIZA FINAL (SÓ COM OS VÁLIDOS)
+          await saveChannelsToStorage(sourceId, parsed);
+          const cats = new Set(parsed.map(c => c.groupTitle)).size;
+          showToast(`✅ ${parsed.length} canais validados e salvos`);
+          await loadSources(); await loadData();
+        }
+      } else {
+        const cats = new Set(parsed.map(c => c.groupTitle)).size;
+        showToast(`✅ ${parsed.length} canais carregados`);
       }
+    }
 
-      let stored = (await getStored(STORAGE_KEYS.channels)).filter(ch => ch.source_id !== sourceId);
-      let nextId = stored.length ? Math.max(...stored.map(c => c.id)) + 1 : 1;
-      stored = stored.concat(parsed.map(ch => ({
-        id: nextId++, name: ch.name, logo: ch.logo || null,
-        group_title: ch.groupTitle, stream_url: ch.url,
-        tvg_id: ch.tvgId || null, tvg_name: ch.tvgName || null, source_id: sourceId,
-      })));
-      await setStored(STORAGE_KEYS.channels, stored);
-
-      source.channelCount = parsed.length;
-      source.lastSyncAt = new Date().toISOString();
-      await setStored(STORAGE_KEYS.sources, sources);
-
-      const cats = new Set(parsed.map(c => c.groupTitle)).size;
-      showToast(`✅ ${parsed.length} canais guardados em ${cats} categorias`);
-      await loadSources(); await loadData();
+    // Helper para salvar canais no IndexedDB sem duplicar código
+    async function saveChannelsToStorage(sourceId, parsedList) {
+      let storedFull = await getStored(STORAGE_KEYS.channels);
+      let storedFiltered = storedFull.filter(ch => ch.source_id !== sourceId);
+      let nextId = storedFull.length ? Math.max(0, ...storedFull.map(c => c.id)) + 1 : 1;
       
-      const adminPan = document.getElementById('adminPanel');
-      if (adminPan && adminPan.classList.contains('open')) {
-        adminPan.classList.remove('open');
+      const newChannels = parsedList.map(ch => ({
+        id: nextId++, 
+        name: ch.name, 
+        logo: ch.logo || null,
+        group_title: ch.groupTitle, 
+        stream_url: ch.url,
+        tvg_id: ch.tvgId || null, 
+        tvg_name: ch.tvgName || null, 
+        source_id: sourceId,
+      }));
+
+      storedFiltered = storedFiltered.concat(newChannels);
+      await setStored(STORAGE_KEYS.channels, storedFiltered);
+
+      // Atualiza a fonte na lista de fontes
+      const currentSources = await getStored(STORAGE_KEYS.sources);
+      const source = currentSources.find(s => s.id === sourceId);
+      if (source) {
+        source.channelCount = parsedList.length;
+        source.lastSyncAt = new Date().toISOString();
+        await setStored(STORAGE_KEYS.sources, currentSources);
       }
     }
 
