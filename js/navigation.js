@@ -129,14 +129,13 @@ function handleKey(e) {
         } else {
           // Chegou no fim das categorias, vai para o rodapé (engrenagem)
           NAV.zone = 'sidebar-footer';
-          updateCatFocus(chips);
-          updateFooterFocus();
+          refreshNavFocus();
           return;
         }
         break;
       case 'ArrowRight':
         NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
-        updateFocus(); return;
+        refreshNavFocus(); return;
       case 'ArrowLeft': return;
       case 'Enter': case 'OK':
         chips[NAV.catIdx]?.click(); return;
@@ -153,13 +152,11 @@ function handleKey(e) {
        case 'ArrowUp':
          NAV.zone = 'categories';
          NAV.catIdx = document.querySelectorAll('.cat-item').length - 1;
-         updateFooterFocus();
-         updateCatFocus();
+         refreshNavFocus();
          break;
        case 'ArrowRight':
          NAV.zone = 'grid'; NAV.rowIdx = gridRows.length - 1; NAV.colIdx = 0;
-         updateFooterFocus();
-         updateFocus();
+         refreshNavFocus();
          break;
        case 'Enter': case 'OK':
          toggleAdmin();
@@ -183,8 +180,7 @@ function handleKey(e) {
         NAV.colIdx--;
       } else {
         NAV.zone = 'categories';
-        updateCatFocus([...document.querySelectorAll('.cat-item')]);
-        clearFocus();
+        refreshNavFocus();
         return;
       }
       break;
@@ -220,13 +216,13 @@ function clearFocus() {
 }
 
 function refreshNavFocus() {
-  clearFocus();
   if (NAV.zone === 'grid') updateFocus();
   else if (NAV.zone === 'categories') updateCatFocus();
   else if (NAV.zone === 'sidebar-footer') updateFooterFocus();
 }
 
 function updateFocus() {
+  clearFocus();
   const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
   if (card) {
     card.classList.add('focused');
@@ -237,6 +233,7 @@ function updateFocus() {
 }
 
 function updateCatFocus(chips) {
+  clearFocus();
   if (!chips) chips = [...document.querySelectorAll('.cat-item')];
   if (chips[NAV.catIdx]) {
     chips[NAV.catIdx].classList.add('focused');
@@ -245,5 +242,6 @@ function updateCatFocus(chips) {
 }
 
 function updateFooterFocus() {
+  clearFocus();
   document.querySelector('.admin-toggle')?.classList.add('focused');
 }
