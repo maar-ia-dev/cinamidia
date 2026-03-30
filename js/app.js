@@ -80,6 +80,9 @@ async function loadData() {
 function renderCatBar() {
   const bar = document.getElementById('catBar');
   if (!bar) return;
+  const totalCats = categories.length + 1; // inclui "Todos"
+  bar.classList.toggle('cat-list-compact', totalCats > 14);
+  bar.classList.toggle('cat-list-dense', totalCats > 24);
   bar.innerHTML = `
 <div class="cat-item ${!activeCategory ? 'active' : ''}" data-cat="" onclick="selectCategory(null)">Todos</div>
 ${categories.map(c => `
@@ -96,17 +99,37 @@ function selectCategory(id) {
   refreshNavFocus();
 }
 
-function getCardHTML(ri, ci, ch) {
+function getAvatarChar(name) {
+  const clean = String(name || '').trim();
+  const first = clean.match(/[0-9A-Za-zÀ-ÖØ-öø-ÿ]/);
+  const firstAscii = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[0-9A-Za-z]/);
+  return (firstAscii ? firstAscii[0] : first ? first[0] : '?').toUpperCase();
+}
+
+function getNoLogoHTML(name) {
+  const safeName = h(name || 'Canal');
+  const avatar = h(getAvatarChar(name));
+  return `<div class="no-logo"><span class="ch-avatar" aria-hidden="true">${avatar}</span><span class="ch-name">${safeName}</span></div>`;
+}
+
+function getChannelCardHTML(ri, ci, ch) {
+  const fallback = getNoLogoHTML(ch.name);
+  const media = ch.logo
+    ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy" onerror="this.outerHTML=getNoLogoHTML('${js(ch.name)}')"/>`
+    : fallback;
+
   return `
     <div class="card" data-row="${ri}" data-col="${ci}" data-id="${ch.id}">
-      ${ch.logo
-        ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy" onerror="this.outerHTML='<div class=\\'no-logo\\'><span class=\\'ch-icon\\'>📺</span><span class=\\'ch-name\\'>${h(ch.name)}</span></div>'"/>`
-        : `<div class="no-logo"><span class="ch-icon">📺</span><span class="ch-name">${h(ch.name)}</span></div>`}
+      ${media}
       <div class="play-overlay">
         <div class="play-icon"><svg width="18" height="18" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
       </div>
       <div class="card-label">${h(ch.name)}</div>
     </div>`;
+}
+
+function getCardHTML(ri, ci, ch) {
+  return getChannelCardHTML(ri, ci, ch);
 }
 
 function loadMoreCards(ri) {
@@ -119,7 +142,7 @@ function loadMoreCards(ri) {
   if (next > current) {
     let html = '';
     for (let i = current; i < next; i++) {
-       html += getCardHTML(ri, i, row.channels[i]);
+       html += getChannelCardHTML(ri, i, row.channels[i]);
     }
     container.insertAdjacentHTML('beforeend', html);
     window.rowRenderCounts[ri] = next;
@@ -169,7 +192,7 @@ function renderContent() {
     <span class="row-count">${row.channels.length} canais</span>
   </div>
   <div class="row-scroll ${activeCategory ? 'grid-mode' : ''}" id="rowScroll${ri}">`;
-    html += subset.map((ch, ci) => getCardHTML(ri, ci, ch)).join('');
+    html += subset.map((ch, ci) => getChannelCardHTML(ri, ci, ch)).join('');
     html += `</div></div>`;
     return html;
   }).join('');
