@@ -305,49 +305,6 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   await video.play();
   logVideoState(video, 'native hls play');
   showToast('HLS nativo em foreground');
-  return;
-
-  if (window.Hls && window.Hls.isSupported()) {
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-    });
-
-    hls.loadSource(hlsUrl);
-    hls.attachMedia(video);
-
-    hls.on(Hls.Events.MANIFEST_PARSED, async () => {
-      try {
-        video.muted = false;
-        video.volume = 1;
-        await video.play();
-        showToast('📺 HLS experimental em foreground');
-      } catch (e) {
-        console.error('[HLS foreground] play falhou:', e);
-        showPlayerError('HLS carregou, mas o play falhou em foreground.');
-      }
-    });
-
-    hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_event, data) => {
-      console.log('[HLS foreground] audio tracks:', data?.audioTracks || []);
-    });
-
-    hls.on(Hls.Events.ERROR, (_event, data) => {
-      console.error('[HLS foreground] error:', data);
-      if (data?.fatal) {
-        showPlayerError('Falha ao reproduzir HLS em foreground no Senza.');
-      }
-    });
-
-    video._hlsInstance = hls;
-    return;
-  }
-
-  video.src = hlsUrl;
-  video.muted = false;
-  video.volume = 1;
-  await video.play();
-  showToast('📺 HLS nativo em foreground');
 }
 
 async function openPlayer(channelId) {
@@ -493,7 +450,6 @@ async function closePlayer() {
   document.getElementById('playerOverlay').classList.remove('open');
   const video = document.getElementById('videoEl');
   await cleanupPlayers(video);
-  await cleanupRemotePlayer();
   updateFocus();
 }
 

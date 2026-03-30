@@ -63,8 +63,11 @@ function handleKey(e) {
       const prevIdx = (idx - 1 + focusables.length) % focusables.length;
       focusables[prevIdx].focus();
     } else if (e.key === 'Enter' || e.key === 'OK' || e.key === ' ' || e.key === '6') {
-      console.log('[Admin] Action Clicked on:', document.activeElement.id);
-      // document.activeElement.click(); // Alguns botões já têm onclick, cuidado para não duplicar
+      e.preventDefault(); // Impede clique duplicado
+      console.log('[Admin] Action Clicked on:', document.activeElement?.id);
+      if (document.activeElement && typeof document.activeElement.click === 'function') {
+        document.activeElement.click(); 
+      }
       return; 
     }
     return;
