@@ -47,3 +47,28 @@ function customConfirm(msg, cb) {
   yesBtn.addEventListener('click', onYes);
   noBtn.addEventListener('click', onNo);
 }
+
+function showVolumeHUD(volValue, muted) {
+  const volHud = document.getElementById('volumeHud');
+  const volFill = document.getElementById('volBarFill');
+  const volText = document.getElementById('volText');
+  const volIcon = document.getElementById('volIcon');
+
+  if (!volHud) return;
+  
+  let pct = Math.round(volValue * 100);
+  if (muted) pct = 0;
+
+  volFill.style.width = pct + '%';
+  volText.textContent = pct + '%';
+  
+  if (muted || pct === 0) volIcon.textContent = '🔇';
+  else if (pct < 50) volIcon.textContent = '🔉';
+  else volIcon.textContent = '🔊';
+
+  volHud.classList.add('show');
+  clearTimeout(window.volTimeout);
+  window.volTimeout = setTimeout(() => {
+    volHud.classList.remove('show');
+  }, 2500);
+}

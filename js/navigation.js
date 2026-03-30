@@ -78,13 +78,13 @@ function handleKey(e) {
     switch (e.key) {
       case 'Escape': case 'Backspace': case 'GoBack':
         e.preventDefault(); closePlayer(); break;
-      case 'ArrowLeft':
+      case 'ArrowUp': case 'ChannelUp':
         e.preventDefault(); changeChannel(-1); break;
-      case 'ArrowRight':
+      case 'ArrowDown': case 'ChannelDown':
         e.preventDefault(); changeChannel(1); break;
       case 'Enter': case 'OK':
         e.preventDefault(); showHud(); break;
-      case 'ArrowUp': case '+': case '=': case 'VolumeUp': {
+      case 'ArrowRight': case '+': case '=': case 'VolumeUp': {
         e.preventDefault();
         const video = document.getElementById('videoEl');
         video.volume = Math.min(1, video.volume + 0.1);
@@ -92,18 +92,18 @@ function handleKey(e) {
         if (typeof senza !== 'undefined' && senza.remotePlayer) {
           try { senza.remotePlayer.setVolume(video.volume); } catch(e){}
         }
-        showToast(`🔊 Volume: ${Math.round(video.volume * 100)}%`);
+        if (typeof showVolumeHUD === 'function') showVolumeHUD(video.volume, video.muted);
         showHud();
         break;
       }
-      case 'ArrowDown': case '-': case '_': case 'VolumeDown': {
+      case 'ArrowLeft': case '-': case '_': case 'VolumeDown': {
         e.preventDefault();
         const video = document.getElementById('videoEl');
         video.volume = Math.max(0, video.volume - 0.1);
         if (typeof senza !== 'undefined' && senza.remotePlayer) {
           try { senza.remotePlayer.setVolume(video.volume); } catch(e){}
         }
-        showToast(`🔉 Volume: ${Math.round(video.volume * 100)}%`);
+        if (typeof showVolumeHUD === 'function') showVolumeHUD(video.volume, video.muted);
         showHud();
         break;
       }
@@ -114,7 +114,7 @@ function handleKey(e) {
         if (typeof senza !== 'undefined' && senza.remotePlayer) {
           try { senza.remotePlayer.setVolume(video.muted ? 0 : video.volume); } catch(e){}
         }
-        showToast(video.muted ? '🔇 Áudio Mudo' : '🔊 Áudio Ativado');
+        if (typeof showVolumeHUD === 'function') showVolumeHUD(video.volume, video.muted);
         break;
       }
     }
