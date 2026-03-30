@@ -170,48 +170,89 @@ function handleKey(e) {
     // zone === 'grid'
     switch (e.key) {
       case 'ArrowRight':
-        NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
+        if (activeCategory) {
+          const scroll = document.querySelector('.row-scroll.grid-mode');
+          if (scroll) {
+            const cardW = 300, gap = 24;
+            const padding = 48 * 2; // grid-mode has padding-left: 48 and padding-right: 48
+            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+            
+            if ((NAV.colIdx % itemsPerRow) < itemsPerRow - 1 && NAV.colIdx < gridRows[NAV.rowIdx].channels.length - 1) {
+              NAV.colIdx++;
+            }
+          }
+        } else {
+          NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
+        }
+        
         if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + 6 >= window.rowRenderCounts[NAV.rowIdx])) {
           loadMoreCards(NAV.rowIdx);
         }
         break;
+
       case 'ArrowLeft':
-        if (NAV.colIdx > 0) {
-          NAV.colIdx--;
+        if (activeCategory) {
+          const scroll = document.querySelector('.row-scroll.grid-mode');
+          if (scroll) {
+            const cardW = 300, gap = 24;
+            const padding = 48 * 2;
+            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+            if (NAV.colIdx % itemsPerRow > 0) {
+              NAV.colIdx--;
+            } else {
+              NAV.zone = 'categories';
+            }
+          }
         } else {
-          NAV.zone = 'categories';
+          if (NAV.colIdx > 0) {
+            NAV.colIdx--;
+          } else {
+            NAV.zone = 'categories';
+          }
         }
         break;
+
       case 'ArrowDown': {
-      if (activeCategory) {
-        const scroll = document.querySelector('.row-scroll.grid-mode');
-        if (scroll) {
-          const itemsPerRow = Math.floor(scroll.clientWidth / (264 + 24)) || 1;
-          if (NAV.colIdx + itemsPerRow < gridRows[NAV.rowIdx].channels.length) {
-            NAV.colIdx += itemsPerRow;
+        if (activeCategory) {
+          const scroll = document.querySelector('.row-scroll.grid-mode');
+          if (scroll) {
+            const cardW = 300, gap = 24;
+            const padding = 48 * 2;
+            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+            if (NAV.colIdx + itemsPerRow < gridRows[NAV.rowIdx].channels.length) {
+              NAV.colIdx += itemsPerRow;
+              if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + itemsPerRow >= window.rowRenderCounts[NAV.rowIdx])) {
+                loadMoreCards(NAV.rowIdx);
+              }
+            } else {
+              // Já está na última linha do grid da categoria
+              // Opcional: navegar para o rodapé da sidebar?
+            }
           }
+        } else if (NAV.rowIdx < gridRows.length - 1) {
+          NAV.rowIdx++;
+          NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
         }
-      } else if (NAV.rowIdx < gridRows.length - 1) {
-        NAV.rowIdx++;
-        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+        break;
       }
-      break;
-    }
-    case 'ArrowUp': {
-      if (activeCategory) {
-        const scroll = document.querySelector('.row-scroll.grid-mode');
-        if (scroll) {
-          const itemsPerRow = Math.floor(scroll.clientWidth / (264 + 24)) || 1;
-          if (NAV.colIdx - itemsPerRow >= 0) {
-            NAV.colIdx -= itemsPerRow;
+
+      case 'ArrowUp': {
+        if (activeCategory) {
+          const scroll = document.querySelector('.row-scroll.grid-mode');
+          if (scroll) {
+            const cardW = 300, gap = 24;
+            const padding = 48 * 2;
+            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+            if (NAV.colIdx - itemsPerRow >= 0) {
+              NAV.colIdx -= itemsPerRow;
+            }
           }
+        } else if (NAV.rowIdx > 0) {
+          NAV.rowIdx--;
+          NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
         }
-      } else if (NAV.rowIdx > 0) {
-        NAV.rowIdx--;
-        NAV.colIdx = Math.min(NAV.colIdx, gridRows[NAV.rowIdx].channels.length - 1);
+        break;
       }
-      break;
-    }
       case 'Enter': case 'OK':
         const ch = gridRows[NAV.rowIdx]?.channels[NAV.colIdx];
         if (ch) openPlayer(ch.id);
