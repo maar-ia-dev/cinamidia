@@ -85,34 +85,177 @@ async function saveChannelsToStorage(sourceId, parsedList) {
   }
 }
 
-async function testChannelUrl(url, timeout = 4000) {
+function buildValidationProxyUrl(url) {
+  return `/api/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function detectValidationStreamType(url) {
+  const rawUrl = String(url || '');
+  const lowerUrl = rawUrl.toLowerCase();
+  let parsed = null;
+
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    let testUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
-    let res;
-    try {
-      res = await fetch(testUrl, { method: 'HEAD', signal: controller.signal });
-    } catch {
-      res = await fetch(testUrl, {
-        method: 'GET', signal: controller.signal,
-        headers: { 'Range': 'bytes=0-0' }
-      });
-    }
+    parsed = new URL(rawUrl, window.location.href);
+  } catch (e) { }
+
+  const pathname = (parsed?.pathname || rawUrl).toLowerCase();
+  const output = (parsed?.searchParams.get('output') || '').toLowerCase();
+
+  if (pathname.endsWith('.mpd') || lowerUrl.includes('.mpd')) return 'dash';
+  if (output === 'ts' || pathname.endsWith('.ts') || lowerUrl.includes('output=ts')) return 'ts';
+  if (output === 'hls' || pathname.endsWith('.m3u8') || lowerUrl.includes('.m3u8')) return 'hls';
+  return 'other';
+}
+
+function looksLikeHtmlOrError(text) {
+  const body = String(text || '').trim();
+  return /<!doctype html|<html[\s>]/i.test(body) || (body.startsWith('{') && /"error"\s*:/i.test(body));
+}
+
+function hasMediaContentType(contentType) {
+  const type = String(contentType || '').toLowerCase();
+  if (!type) return true;
+  if (type.includes('text/html')) return false;
+  if (type.includes('application/json')) return false;
+  return true;
+}
+
+async function fetchWithTimeout(url, init = {}, timeout = 6000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
     clearTimeout(timer);
-    return res.ok || res.status === 206;
-  } catch { return false; }
+  }
+}
+
+async function validateBinaryReachability(url, timeout = 6000) {
+  try {
+    const res = await fetchWithTimeout(buildValidationProxyUrl(url), {
+      method: 'GET',
+      headers: { Range: 'bytes=0-2047' },
+    }, timeout);
+
+    if (!(res.ok || res.status === 206)) return false;
+    return hasMediaContentType(res.headers.get('content-type'));
+  } catch {
+    return false;
+  }
+}
+
+function getFirstDataLine(lines) {
+  return lines.find(line => line && !line.startsWith('#')) || '';
+}
+
+function resolvePlaylistUrl(candidate, baseUrl) {
+  const value = String(candidate || '').trim();
+  if (!value) return '';
+  if (value.startsWith('/api/proxy?url=')) return value;
+
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch (e) {
+    return value;
+  }
+}
+
+async function validateHlsUrl(url, timeout = 6000) {
+  try {
+    const playlistUrl = buildValidationProxyUrl(url);
+    const res = await fetchWithTimeout(playlistUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/vnd.apple.mpegurl,application/x-mpegURL,text/plain,*/*' },
+    }, timeout);
+    if (!res.ok) return false;
+
+    const text = await res.text();
+    if (!text || looksLikeHtmlOrError(text)) return false;
+
+    const hasM3u = /#EXTM3U/i.test(text);
+    const hasStreamInf = /#EXT-X-STREAM-INF/i.test(text);
+    const hasInf = /#EXTINF\s*:/i.test(text);
+    if (!hasM3u || (!hasStreamInf && !hasInf)) return false;
+
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    if (hasStreamInf) {
+      let childRef = '';
+      for (let i = 0; i < lines.length - 1; i++) {
+        if (/^#EXT-X-STREAM-INF/i.test(lines[i])) {
+          for (let j = i + 1; j < lines.length; j++) {
+            if (!lines[j].startsWith('#')) {
+              childRef = lines[j];
+              break;
+            }
+          }
+          if (childRef) break;
+        }
+      }
+
+      if (!childRef) return false;
+      const childUrl = resolvePlaylistUrl(childRef, playlistUrl);
+      const childRes = await fetchWithTimeout(childUrl, { method: 'GET' }, timeout);
+      if (!childRes.ok) return false;
+      const childText = await childRes.text();
+      if (!/#EXTINF\s*:/i.test(childText) || looksLikeHtmlOrError(childText)) return false;
+
+      const childLines = childText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const firstSegment = getFirstDataLine(childLines);
+      if (!firstSegment) return false;
+      const segmentUrl = resolvePlaylistUrl(firstSegment, childUrl);
+      return validateBinaryReachability(segmentUrl, timeout);
+    }
+
+    const firstSegment = getFirstDataLine(lines);
+    if (!firstSegment) return false;
+    const segmentUrl = resolvePlaylistUrl(firstSegment, playlistUrl);
+    return validateBinaryReachability(segmentUrl, timeout);
+  } catch {
+    return false;
+  }
+}
+
+async function validateDashUrl(url, timeout = 6000) {
+  try {
+    const res = await fetchWithTimeout(buildValidationProxyUrl(url), {
+      method: 'GET',
+      headers: { Accept: 'application/dash+xml,application/xml,text/xml,*/*' },
+    }, timeout);
+    if (!res.ok) return false;
+
+    const text = await res.text();
+    if (!text || looksLikeHtmlOrError(text)) return false;
+    if (!/<MPD[\s>]/i.test(text)) return false;
+    if (!/<Period[\s>]/i.test(text)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function testChannelUrl(url, timeout = 6000) {
+  const type = detectValidationStreamType(url);
+
+  if (type === 'hls') return validateHlsUrl(url, timeout);
+  if (type === 'dash') return validateDashUrl(url, timeout);
+  return validateBinaryReachability(url, timeout);
+}
+
+async function testChannelWithRetry(url) {
+  if (await testChannelUrl(url, 6000)) return true;
+  return testChannelUrl(url, 9000);
 }
 
 async function validateChannelsBatch(channels, onProgress) {
-  const BATCH_SIZE = 25;
+  const BATCH_SIZE = 12;
   const results = [];
   let tested = 0;
 
   for (let i = 0; i < channels.length; i += BATCH_SIZE) {
     const batch = channels.slice(i, i + BATCH_SIZE);
     const promises = batch.map(async ch => {
-      const ok = await testChannelUrl(ch.url);
+      const ok = await testChannelWithRetry(ch.url);
       tested++;
       onProgress(tested, channels.length, ok ? 'ok' : 'fail', ch.name);
       return ok ? ch : null;

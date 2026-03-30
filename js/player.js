@@ -278,7 +278,7 @@ function logVideoState(video, label) {
 async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStreamUrl) {
   await senza.lifecycle.moveToForeground();
 
-  const hlsUrls = [originalStreamUrl, fallbackStreamUrl];
+  const hlsUrls = [fallbackStreamUrl, originalStreamUrl];
   console.log('[HLS foreground] candidate URLs:', hlsUrls.filter(Boolean));
 
   if (window.Hls && window.Hls.isSupported()) {
@@ -436,7 +436,7 @@ async function loadChannel(ch) {
 
   // Fallback Hls.js ou Nativo
   if (isHLS && Hls.isSupported()) {
-    loadWithHls(video, [originalStreamUrl, streamUrl], {
+    loadWithHls(video, [streamUrl, originalStreamUrl], {
       logPrefix: '[HLS browser]',
       errorMessage: 'Falha ao reproduzir HLS.',
     });

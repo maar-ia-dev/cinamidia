@@ -13,6 +13,29 @@ function setupNavigation() {
   });
 }
 
+function getGridModeMetrics() {
+  const scroll = document.querySelector('.row-scroll.grid-mode');
+  if (!scroll) return null;
+
+  const rootStyles = getComputedStyle(document.documentElement);
+  const scrollStyles = getComputedStyle(scroll);
+  const cardW = parseFloat(rootStyles.getPropertyValue('--card-w')) || 300;
+  const gap = parseFloat(scrollStyles.gap) || 24;
+  const paddingLeft = parseFloat(scrollStyles.paddingLeft) || 0;
+  const paddingRight = parseFloat(scrollStyles.paddingRight) || 0;
+  const usableWidth = Math.max(1, scroll.clientWidth - paddingLeft - paddingRight + gap);
+  const itemsPerRow = Math.max(1, Math.floor(usableWidth / (cardW + gap)));
+
+  return { scroll, itemsPerRow };
+}
+
+function ensureRowCardsLoaded(rowIdx, targetIdx) {
+  if (!window.rowRenderCounts[rowIdx]) return;
+  if (targetIdx >= window.rowRenderCounts[rowIdx] - 1) {
+    loadMoreCards(rowIdx);
+  }
+}
+
 function handleKey(e) {
   console.log(`[Key] ${e.key} (code: ${e.keyCode})`);
   const playerOpen = document.getElementById('playerOverlay').classList.contains('open');
@@ -171,12 +194,9 @@ function handleKey(e) {
     switch (e.key) {
       case 'ArrowRight':
         if (activeCategory) {
-          const scroll = document.querySelector('.row-scroll.grid-mode');
-          if (scroll) {
-            const cardW = 300, gap = 24;
-            const padding = 48 * 2; // grid-mode has padding-left: 48 and padding-right: 48
-            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
-            
+          const metrics = getGridModeMetrics();
+          if (metrics) {
+            const { itemsPerRow } = metrics;
             if ((NAV.colIdx % itemsPerRow) < itemsPerRow - 1 && NAV.colIdx < gridRows[NAV.rowIdx].channels.length - 1) {
               NAV.colIdx++;
             }
@@ -185,18 +205,14 @@ function handleKey(e) {
           NAV.colIdx = Math.min(NAV.colIdx + 1, (gridRows[NAV.rowIdx]?.channels.length || 1) - 1);
         }
         
-        if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + 6 >= window.rowRenderCounts[NAV.rowIdx])) {
-          loadMoreCards(NAV.rowIdx);
-        }
+        ensureRowCardsLoaded(NAV.rowIdx, NAV.colIdx + 6);
         break;
 
       case 'ArrowLeft':
         if (activeCategory) {
-          const scroll = document.querySelector('.row-scroll.grid-mode');
-          if (scroll) {
-            const cardW = 300, gap = 24;
-            const padding = 48 * 2;
-            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+          const metrics = getGridModeMetrics();
+          if (metrics) {
+            const { itemsPerRow } = metrics;
             if (NAV.colIdx % itemsPerRow > 0) {
               NAV.colIdx--;
             } else {
@@ -214,16 +230,15 @@ function handleKey(e) {
 
       case 'ArrowDown': {
         if (activeCategory) {
-          const scroll = document.querySelector('.row-scroll.grid-mode');
-          if (scroll) {
-            const cardW = 300, gap = 24;
-            const padding = 48 * 2;
-            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
-            if (NAV.colIdx + itemsPerRow < gridRows[NAV.rowIdx].channels.length) {
-              NAV.colIdx += itemsPerRow;
-              if (window.rowRenderCounts[NAV.rowIdx] && (NAV.colIdx + itemsPerRow >= window.rowRenderCounts[NAV.rowIdx])) {
-                loadMoreCards(NAV.rowIdx);
-              }
+          const metrics = getGridModeMetrics();
+          if (metrics) {
+            const { itemsPerRow } = metrics;
+            const total = gridRows[NAV.rowIdx].channels.length;
+            let targetIdx = NAV.colIdx + itemsPerRow;
+            if (targetIdx >= total) targetIdx = total - 1;
+            if (targetIdx > NAV.colIdx) {
+              ensureRowCardsLoaded(NAV.rowIdx, targetIdx + itemsPerRow);
+              NAV.colIdx = targetIdx;
             } else {
               // Já está na última linha do grid da categoria
               // Opcional: navegar para o rodapé da sidebar?
@@ -238,11 +253,9 @@ function handleKey(e) {
 
       case 'ArrowUp': {
         if (activeCategory) {
-          const scroll = document.querySelector('.row-scroll.grid-mode');
-          if (scroll) {
-            const cardW = 300, gap = 24;
-            const padding = 48 * 2;
-            const itemsPerRow = Math.floor((scroll.clientWidth - padding + gap) / (cardW + gap)) || 1;
+          const metrics = getGridModeMetrics();
+          if (metrics) {
+            const { itemsPerRow } = metrics;
             if (NAV.colIdx - itemsPerRow >= 0) {
               NAV.colIdx -= itemsPerRow;
             }
@@ -275,7 +288,11 @@ function clearFocus() {
 function refreshNavFocus() {
   clearFocus();
   if (NAV.zone === 'grid') {
-    const card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
+    let card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
+    if (!card && activeCategory) {
+      ensureRowCardsLoaded(NAV.rowIdx, NAV.colIdx);
+      card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
+    }
     if (card) {
       card.classList.add('focused');
       card.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
