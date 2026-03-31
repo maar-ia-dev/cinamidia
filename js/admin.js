@@ -1,6 +1,7 @@
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 let sources = [];
 let activeTab = 'm3u';
+let publicBrOptions = [];
 
 function toggleAdmin() {
   const panel = document.getElementById('adminPanel');
@@ -8,6 +9,7 @@ function toggleAdmin() {
   if (panel.classList.contains('open')) {
     NAV.zone = 'admin';
     loadSources();
+    refreshPublicBrChecklist();
     setTimeout(() => {
       const first = document.querySelector('#adminPanel .admin-tab.active, #adminPanel button, #adminPanel input');
       if (first) first.focus();
@@ -51,6 +53,142 @@ function switchTab(tab) {
   document.getElementById('tabXtream').classList.toggle('active', tab === 'xtream');
   document.getElementById('tabFile').classList.toggle('active', tab === 'file');
   document.getElementById('tabDefault').classList.toggle('active', tab === 'default');
+
+  if (tab === 'default') {
+    refreshPublicBrChecklist();
+  }
+}
+
+function resolveLocalSourceUrl(filename) {
+  const clean = String(filename || '').replace(/^\.?\//, '');
+  if (window.location.protocol === 'file:') return `./${clean}`;
+  const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  return `${base}${clean}`;
+}
+
+function parsePublicBrList(raw) {
+  const seenUrls = new Set();
+  const parsed = [];
+
+  String(raw || '')
+    .split(/\r?\n/)
+    .forEach((line) => {
+      const clean = line.trim();
+      if (!clean || clean.startsWith('#')) return;
+
+      const separator = clean.indexOf(',');
+      if (separator < 0) return;
+
+      const label = clean.slice(0, separator).trim();
+      const url = clean.slice(separator + 1).trim();
+      if (!label || !/^https?:\/\//i.test(url) || seenUrls.has(url)) return;
+
+      seenUrls.add(url);
+      parsed.push({ label, url });
+    });
+
+  return parsed;
+}
+
+async function refreshPublicBrChecklist() {
+  const container = document.getElementById('publicBrChecklist');
+  if (!container) return;
+
+  container.innerHTML = '<p class="public-br-empty">Carregando lista publica...</p>';
+
+  try {
+    const fileUrl = resolveLocalSourceUrl('m3u_list.txt');
+    const response = await fetch(fileUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const txt = await response.text();
+    publicBrOptions = parsePublicBrList(txt);
+
+    if (!publicBrOptions.length) {
+      container.innerHTML = '<p class="public-br-empty">Nenhuma lista valida encontrada em m3u_list.txt.</p>';
+      return;
+    }
+
+    const storedSources = await getStored(STORAGE_KEYS.sources);
+    const existingUrls = new Set((storedSources || []).map((s) => String(s.url || '')));
+
+    container.innerHTML = publicBrOptions.map((item, idx) => {
+      const inputId = `publicBrItem${idx}`;
+      const exists = existingUrls.has(item.url);
+      return `
+<label class="public-br-item ${exists ? 'existing' : ''}" for="${inputId}">
+  <input id="${inputId}" type="checkbox" name="publicBrSource" value="${h(item.url)}" ${exists ? 'disabled' : ''} />
+  <div class="public-br-item-main">
+    <span class="public-br-name">${h(item.label)}</span>
+    <span class="public-br-url">${h(item.url)}</span>
+  </div>
+  <span class="public-br-status">${exists ? 'Ja adicionada' : 'Nova'}</span>
+</label>`;
+    }).join('');
+  } catch (error) {
+    console.warn('[PublicBR] Falha ao carregar m3u_list.txt:', error.message);
+    publicBrOptions = [];
+    container.innerHTML = '<p class="public-br-empty">Nao foi possivel ler m3u_list.txt.</p>';
+  }
+}
+
+function togglePublicBrSelection(checked) {
+  document
+    .querySelectorAll('#publicBrChecklist input[name="publicBrSource"]:not(:disabled)')
+    .forEach((input) => {
+      input.checked = !!checked;
+    });
+}
+
+async function syncSelectedPublicBrLists() {
+  const selectedInputs = [...document.querySelectorAll('#publicBrChecklist input[name="publicBrSource"]:checked:not(:disabled)')];
+  if (!selectedInputs.length) {
+    showToast('⚠️ Selecione pelo menos uma lista publica');
+    return;
+  }
+
+  const selectedUrls = selectedInputs.map((input) => String(input.value || '').trim()).filter(Boolean);
+  const byUrl = new Map(publicBrOptions.map((item) => [item.url, item]));
+
+  const storedSources = await getStored(STORAGE_KEYS.sources);
+  sources = Array.isArray(storedSources) ? [...storedSources] : [];
+
+  const added = [];
+  let skipped = 0;
+  let nextId = sources.length ? Math.max(...sources.map((s) => s.id)) + 1 : 1;
+
+  selectedUrls.forEach((url) => {
+    if (sources.some((s) => s.url === url)) {
+      skipped++;
+      return;
+    }
+
+    const item = byUrl.get(url);
+    const label = item ? `Lista Publica BR - ${item.label}` : 'Lista Publica BR';
+    const source = { id: nextId++, label, url, channelCount: 0, lastSyncAt: null };
+    sources.push(source);
+    added.push(source);
+  });
+
+  if (!added.length) {
+    showToast('⚠️ Todas as listas selecionadas ja estao cadastradas');
+    await refreshPublicBrChecklist();
+    return;
+  }
+
+  await setStored(STORAGE_KEYS.sources, sources);
+  renderSources();
+
+  for (const source of added) {
+    await syncSource(source.id);
+  }
+
+  await refreshPublicBrChecklist();
+  if (skipped > 0) {
+    showToast(`✅ ${added.length} lista(s) sincronizada(s) (${skipped} ja existia[m])`);
+  } else {
+    showToast(`✅ ${added.length} lista(s) sincronizada(s)`);
+  }
 }
 
 function updateXtreamPreview() {
@@ -80,7 +218,7 @@ async function addSource() {
   let label, url;
 
   if (activeTab === 'file') return handleFileUpload();
-  if (activeTab === 'default') return handleDefaultUpload();
+  if (activeTab === 'default') return syncSelectedPublicBrLists();
 
   if (activeTab === 'xtream') {
     label = document.getElementById('xtreamLabel').value.trim();
@@ -107,11 +245,11 @@ async function addSource() {
 
 async function handleDefaultUpload(filename = 'br_categorizada.m3u', labelPrefix = 'CinaMídia BR (Pública)') {
   const label = labelPrefix;
-  const isLocalFile = window.location.protocol === 'file:';
-  const url = isLocalFile ? `./${filename}` : window.location.origin + window.location.pathname.replace('index.html', '') + filename;
+  const url = /^https?:\/\//i.test(filename) ? filename : resolveLocalSourceUrl(filename);
 
   const currentSources = await getStored(STORAGE_KEYS.sources);
-  if (currentSources.some(s => s.url === url)) {
+  sources = Array.isArray(currentSources) ? [...currentSources] : [];
+  if (sources.some(s => s.url === url)) {
      console.log(`[AutoSetup] Lista ${filename} já existe. Pulando.`);
      return;
   }
@@ -121,6 +259,7 @@ async function handleDefaultUpload(filename = 'br_categorizada.m3u', labelPrefix
   await setStored(STORAGE_KEYS.sources, sources);
   await syncSource(newId);
   renderSources();
+  await refreshPublicBrChecklist();
 }
 
 async function handleFileUpload() {
