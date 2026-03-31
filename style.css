@@ -404,6 +404,9 @@ body {
   display: none;
   align-items: center;
   gap: 14px;
+  padding: 14px 18px 14px 10px;
+  border-radius: 16px;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -411,11 +414,23 @@ body {
   display: flex;
 }
 
+.zap-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(232, 160, 32, 0.14), transparent 40%),
+    linear-gradient(90deg, rgba(6, 10, 16, 0.82) 0%, rgba(6, 10, 16, 0.58) 45%, rgba(6, 10, 16, 0.28) 72%, rgba(6, 10, 16, 0) 100%);
+  pointer-events: none;
+}
+
 .zap-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 150px;
+  position: relative;
+  z-index: 1;
 }
 
 .zap-item {
@@ -447,6 +462,8 @@ body {
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.74);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .zap-channel {

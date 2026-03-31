@@ -6,10 +6,13 @@ let zapHideTimer = null;
 let zapCommitTimer = null;
 let zapPendingIndex = -1;
 let infoPanelVisible = false;
+let infoPanelTimer = null;
+let playerVideoListenersBound = false;
 const ENABLE_EXPERIMENTAL_SENZA_HLS = true;
 const ZAP_VISIBLE_ITEMS = 5;
 const ZAP_COMMIT_DELAY_MS = 850;
 const ZAP_HIDE_DELAY_MS = 2400;
+const INFO_PANEL_HIDE_DELAY_MS = 5000;
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
 
@@ -27,6 +30,30 @@ function showPlayerError(message = PLAYER_ERROR_DEFAULT_HTML) {
   const messageEl = errorEl.querySelector('p');
   if (messageEl) messageEl.innerHTML = message;
   errorEl.classList.add('show');
+}
+
+function maybeHidePlayerErrorWhilePlaying(video) {
+  if (!video) return;
+  if (video.paused || video.ended) return;
+  if (video.readyState < 2) return;
+  if (!video.currentSrc) return;
+
+  const errorEl = document.getElementById('playerError');
+  if (errorEl?.classList.contains('show')) {
+    resetPlayerError();
+  }
+}
+
+function ensurePlayerVideoListeners() {
+  if (playerVideoListenersBound) return;
+  const video = document.getElementById('videoEl');
+  if (!video) return;
+
+  const onPlayable = () => maybeHidePlayerErrorWhilePlaying(video);
+  ['playing', 'canplay', 'canplaythrough', 'loadeddata', 'timeupdate'].forEach(evt => {
+    video.addEventListener(evt, onPlayable);
+  });
+  playerVideoListenersBound = true;
 }
 
 function isSenzaEnvironment() {
@@ -173,6 +200,7 @@ async function loadWithShaka(video, PlayerClass, streamUrl, useSenzaPlayer = fal
   await player.load(streamUrl);
   await applyPreferredAudioLanguage(player);
   await video.play();
+  maybeHidePlayerErrorWhilePlaying(video);
 }
 
 function loadWithHls(video, streamUrls, options = {}) {
@@ -195,6 +223,7 @@ function loadWithHls(video, streamUrls, options = {}) {
       try {
         if (options.beforePlay) options.beforePlay();
         await video.play();
+        maybeHidePlayerErrorWhilePlaying(video);
         if (options.onManifestParsed) options.onManifestParsed(currentUrl);
       } catch (e) {
         console.error('[HLS] play falhou:', e);
@@ -310,6 +339,7 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   video.muted = false;
   video.volume = 1;
   await video.play();
+  maybeHidePlayerErrorWhilePlaying(video);
   logVideoState(video, 'native hls play');
   showToast('HLS nativo em foreground');
 }
@@ -341,9 +371,12 @@ function showPlayerInfoPanel() {
   if (current) updatePlayerInfoPanel(current);
   panel.classList.add('show');
   infoPanelVisible = true;
+  clearTimeout(infoPanelTimer);
+  infoPanelTimer = setTimeout(() => hidePlayerInfoPanel(), INFO_PANEL_HIDE_DELAY_MS);
 }
 
 function hidePlayerInfoPanel() {
+  clearTimeout(infoPanelTimer);
   const panel = document.getElementById('playerInfoPanel');
   panel?.classList.remove('show');
   infoPanelVisible = false;
@@ -368,6 +401,7 @@ function togglePlayerPause() {
     const playPromise = video.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(() => showPlayerError('Nao foi possivel retomar a reprodução.'));
+      playPromise.then(() => maybeHidePlayerErrorWhilePlaying(video)).catch(() => {});
     }
     showToast('▶ Reproduzindo');
   } else {
@@ -469,6 +503,7 @@ async function openPlayer(channelId) {
 async function loadChannel(ch) {
   const overlay = document.getElementById('playerOverlay');
   overlay.classList.add('open');
+  ensurePlayerVideoListeners();
 
   document.getElementById('playerName').textContent = ch.name;
   document.getElementById('playerCat').textContent = ch.group_title || '';
@@ -551,7 +586,7 @@ async function loadChannel(ch) {
 
         await senzaPlayer.load(streamUrl);
         await applyPreferredAudioLanguage(senzaPlayer);
-        video.play().catch(e => console.error('[Video] Play Error', e));
+        video.play().then(() => maybeHidePlayerErrorWhilePlaying(video)).catch(e => console.error('[Video] Play Error', e));
         showToast('📡 Senza SDK: DASH remoto sincronizado');
         return;
       } catch (e) {
@@ -592,7 +627,7 @@ async function loadChannel(ch) {
     });
   } else {
     video.src = streamUrl;
-    video.play().catch(() => showPlayerError());
+    video.play().then(() => maybeHidePlayerErrorWhilePlaying(video)).catch(() => showPlayerError());
   }
 }
 
