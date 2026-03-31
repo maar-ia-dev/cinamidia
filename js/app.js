@@ -4,10 +4,70 @@ let categories = [];
 let activeCategory = null;
 let senzaReady = false;
 let senzaPlayer = null;
+const DEFAULT_HERO_IMAGES = [
+  'src/hero/hero1.png',
+  'src/hero/hero2.png',
+  'src/hero/hero3.png',
+  'src/hero/hero4.png',
+  'src/hero/hero5.png',
+];
+let heroImages = [...DEFAULT_HERO_IMAGES];
+let heroRotationTimer = null;
+let currentHeroIndex = -1;
 
 // Navigation/Grid state stored in glass (global)
 let gridRows = []; // [{group, channels}]
 window.rowRenderCounts = [];
+
+async function loadHeroImages() {
+  try {
+    const res = await fetch('src/hero/heroes.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data : Array.isArray(data?.images) ? data.images : [];
+    if (!entries.length) return;
+
+    const normalized = entries
+      .filter(item => typeof item === 'string' && item.trim())
+      .map(item => item.startsWith('src/') ? item : `src/hero/${item.replace(/^\.?\//, '')}`);
+
+    if (normalized.length) heroImages = normalized;
+  } catch (_) {
+    // fallback silencioso para DEFAULT_HERO_IMAGES
+  }
+}
+
+function pickRandomHeroIndex() {
+  if (heroImages.length <= 1) return 0;
+  let next = 0;
+  do {
+    next = Math.floor(Math.random() * heroImages.length);
+  } while (next === currentHeroIndex);
+  return next;
+}
+
+function renderRandomHero() {
+  const heroEl = document.getElementById('heroBackdrop');
+  if (!heroEl || !heroImages.length) return;
+
+  const nextIndex = pickRandomHeroIndex();
+  const nextSrc = heroImages[nextIndex];
+  const img = new Image();
+  img.onload = () => {
+    currentHeroIndex = nextIndex;
+    heroEl.style.backgroundImage = `url("${nextSrc}")`;
+    heroEl.classList.add('is-ready');
+  };
+  img.src = nextSrc;
+}
+
+async function initHeroRotation() {
+  if (!document.getElementById('heroBackdrop')) return;
+  await loadHeroImages();
+  renderRandomHero();
+  clearInterval(heroRotationTimer);
+  heroRotationTimer = setInterval(renderRandomHero, 45000);
+}
 
 // ─── SENZA INIT ───────────────────────────────────────────────────────────────
 async function initSenza() {
@@ -32,6 +92,7 @@ async function initSenza() {
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  await initHeroRotation();
   await initSenza();
   await loadData();
   setupNavigation();
@@ -80,11 +141,14 @@ async function loadData() {
 function renderCatBar() {
   const bar = document.getElementById('catBar');
   if (!bar) return;
-  const totalCats = categories.length + 1; // inclui "Todos"
+  const totalCats = categories.length;
   bar.classList.toggle('cat-list-compact', totalCats > 14);
   bar.classList.toggle('cat-list-dense', totalCats > 24);
+  const homeShortcut = document.getElementById('homeShortcut');
+  if (homeShortcut) {
+    homeShortcut.classList.toggle('active', !activeCategory);
+  }
   bar.innerHTML = `
-<div class="cat-item ${!activeCategory ? 'active' : ''}" data-cat="" onclick="selectCategory(null)">Todos</div>
 ${categories.map(c => `
   <div class="cat-item ${activeCategory === c.id ? 'active' : ''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')">${h(c.name)}</div>
 `).join('')}

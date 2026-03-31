@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CinaMídia</title>
   
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 
   <!-- SDKs & Libraries -->
@@ -26,16 +27,24 @@
   <script src="js/app.js" defer></script>
 </head>
 
-<body>
+<body class="v2-shell">
 
   <!-- SIDEBAR (NETFLIX STYLE) -->
   <nav class="sidebar">
     <div class="logo-box">
       <div style="display:flex;align-items:center">
         <div class="logo">Cina<span>Mídia</span></div>
+        <span class="v2-badge">Premium</span>
         <span class="senza-badge" id="senzaBadge" style="display:none">Senza</span>
       </div>
       <div id="channelCounter" style="font-size:13px;color:var(--muted);margin-top:10px"></div>
+    </div>
+
+    <div class="v2-shortcuts">
+      <a href="#" id="homeShortcut" class="v2-shortcut" onclick="selectCategory(null); return false;"><span class="material-symbols-outlined">home</span><span>Início</span></a>
+      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">movie</span><span>Filmes</span></a>
+      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">tv</span><span>Séries</span></a>
+      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">search</span><span>Buscar</span></a>
     </div>
     
     <div class="cat-list" id="catBar">
@@ -47,6 +56,20 @@
       <button class="admin-toggle" onclick="toggleAdmin()" title="Configurações (M)">⚙️</button>
     </div>
   </nav>
+
+  <header class="v2-topbar">
+    <div class="v2-topbar-left">
+      <span>Início</span>
+      <span>Lançamentos</span>
+      <span>Tendências</span>
+    </div>
+    <div class="v2-topbar-right">
+      <span class="material-symbols-outlined">notifications</span>
+      <span class="material-symbols-outlined">account_circle</span>
+    </div>
+  </header>
+
+  <div class="hero-backdrop" id="heroBackdrop" aria-hidden="true"></div>
 
   <!-- CONTENT (horizontal rows) -->
   <main class="content" id="content">

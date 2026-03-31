@@ -102,10 +102,40 @@ body {
 .admin-toggle:hover, .admin-toggle:focus, .admin-toggle.focused { color: var(--accent); border-color: var(--accent); box-shadow: var(--focus-ring); outline: none; transform: scale(1.1); }
 
 /* ═══ CONTENT AREA (rows horizontais estilo Netflix) ═══════════════════════ */
+.hero-backdrop {
+  position: fixed;
+  top: 0;
+  left: 360px;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background-color: #0b111a;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: opacity .55s ease;
+}
+
+.hero-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 12, 18, 0.9) 0%, rgba(8, 12, 18, 0.62) 34%, rgba(8, 12, 18, 0.38) 56%, rgba(8, 12, 18, 0.88) 100%),
+    linear-gradient(180deg, rgba(8, 12, 18, 0.44) 0%, rgba(8, 12, 18, 0.66) 62%, rgba(8, 12, 18, 0.9) 100%);
+}
+
+.hero-backdrop.is-ready {
+  opacity: 1;
+}
+
 .content {
   position: fixed; top: 0; left: 360px; right: 0; bottom: 0;
   overflow-y: auto; overflow-x: hidden; padding: 48px;
   scrollbar-width: none;
+  z-index: 2;
 }
 
 .content::-webkit-scrollbar {
@@ -833,6 +863,7 @@ body {
 /* ═══ BACKGROUND MODE (Senza Cloud Connector) ═════════════════════════════ */
 body.background-mode header,
 body.background-mode .cat-bar,
+body.background-mode .hero-backdrop,
 body.background-mode .content {
   opacity: 0;
   pointer-events: none;
@@ -904,4 +935,240 @@ body.background-mode .content {
   outline-offset: 2px;
   box-shadow: 0 0 15px rgba(255, 171, 0, 0.4) !important;
   border-color: var(--accent) !important;
+}
+
+/* ═══ V2 THEME OVERRIDES (single-css deploy) ═══════════════════════════════ */
+:root {
+  --v2-sidebar-w: 300px;
+}
+
+body.v2-shell {
+  font-family: 'Manrope', sans-serif;
+  background: #131313;
+  color: #e5e2e1;
+}
+
+.v2-shell .hero-backdrop {
+  left: var(--v2-sidebar-w);
+}
+
+.v2-shell .hero-backdrop::before {
+  background:
+    linear-gradient(90deg, rgba(19, 19, 19, 0.94) 0%, rgba(19, 19, 19, 0.68) 34%, rgba(19, 19, 19, 0.42) 58%, rgba(19, 19, 19, 0.9) 100%),
+    linear-gradient(180deg, rgba(19, 19, 19, 0.34) 0%, rgba(19, 19, 19, 0.62) 60%, rgba(19, 19, 19, 0.9) 100%);
+}
+
+.v2-shell .sidebar {
+  width: var(--v2-sidebar-w);
+  background: linear-gradient(90deg, #1c1b1b 0%, #131313 64%, rgba(19, 19, 19, 0) 100%);
+  border-right: 1px solid rgba(255, 220, 161, 0.12);
+  padding-top: 28px;
+  padding-bottom: 22px;
+  box-shadow: 36px 0 42px rgba(0, 0, 0, 0.34);
+}
+
+.v2-shell .logo-box {
+  padding: 0 22px 18px;
+}
+
+.v2-shell .logo {
+  font-family: 'Manrope', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffba20;
+}
+
+.v2-shell .logo span {
+  color: #e5e2e1;
+}
+
+.v2-badge {
+  margin-left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 186, 32, 0.35);
+  background: rgba(255, 186, 32, 0.14);
+  color: #ffdea8;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.v2-shell .senza-badge {
+  margin-left: 8px;
+  border-color: rgba(255, 186, 32, 0.3);
+}
+
+.v2-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 14px;
+}
+
+.v2-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-left: 4px solid transparent;
+  border-radius: 10px;
+  color: rgba(229, 226, 225, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+
+.v2-shortcut:hover {
+  color: #e5e2e1;
+  background: rgba(53, 53, 52, 0.55);
+}
+
+.v2-shortcut.active {
+  color: #ffba20;
+  background: linear-gradient(90deg, rgba(255, 186, 32, 0.16) 0%, rgba(255, 186, 32, 0) 100%);
+  border-left-color: #ffba20;
+}
+
+.v2-shortcut .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.v2-shell .cat-list {
+  gap: 6px;
+  padding: 6px 16px 16px;
+}
+
+.v2-shell .cat-item {
+  min-height: 46px;
+  border-left-width: 4px;
+  border-right-width: 0;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: rgba(229, 226, 225, 0.72);
+}
+
+.v2-shell .cat-item.active {
+  color: #ffdca1;
+  border-left-color: #ffba20;
+  background: linear-gradient(90deg, rgba(255, 186, 32, 0.22) 0%, rgba(255, 186, 32, 0) 100%);
+}
+
+.v2-shell .cat-item:hover,
+.v2-shell .cat-item.focused {
+  color: #e5e2e1;
+  background: rgba(53, 53, 52, 0.6);
+}
+
+.v2-shell .sidebar-bottom {
+  padding: 12px 18px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.v2-shell .clock {
+  font-size: 28px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.v2-shell .admin-toggle {
+  background: rgba(53, 53, 52, 0.65);
+}
+
+.v2-topbar {
+  position: fixed;
+  left: var(--v2-sidebar-w);
+  right: 0;
+  top: 0;
+  height: 66px;
+  padding: 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(19, 19, 19, 0.8) 0%, rgba(19, 19, 19, 0.44) 100%);
+  z-index: 120;
+}
+
+.v2-topbar-left,
+.v2-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.v2-topbar-left span {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(229, 226, 225, 0.76);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.v2-topbar-left span:first-child {
+  color: #ffba20;
+}
+
+.v2-topbar-right .material-symbols-outlined {
+  color: rgba(229, 226, 225, 0.72);
+}
+
+.v2-shell .content {
+  left: var(--v2-sidebar-w);
+  padding: 92px 26px 34px;
+}
+
+.v2-shell .row-header {
+  padding: 0 12px;
+}
+
+.v2-shell .row-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.v2-shell .row-count {
+  color: rgba(229, 226, 225, 0.62);
+}
+
+.v2-shell .row-scroll {
+  padding: 16px 12px 26px;
+}
+
+.v2-shell .row-scroll.grid-mode {
+  padding: 22px 12px 64px;
+}
+
+.v2-shell .card {
+  border-radius: 14px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #151515;
+}
+
+.v2-shell .card.focused {
+  border-color: #ffba20;
+  box-shadow: 0 0 0 4px rgba(255, 186, 32, 0.2), 0 18px 42px rgba(0, 0, 0, 0.54);
+}
+
+.v2-shell .card .play-overlay {
+  background: rgba(255, 186, 32, 0.14);
+}
+
+.v2-shell .card .play-icon {
+  background: #ffba20;
+}
+
+.v2-shell .empty {
+  padding: 84px 12px;
 }

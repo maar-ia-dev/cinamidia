@@ -13,8 +13,54 @@ const ZAP_VISIBLE_ITEMS = 5;
 const ZAP_COMMIT_DELAY_MS = 3000;
 const ZAP_HIDE_DELAY_MS = 2400;
 const INFO_PANEL_HIDE_DELAY_MS = 5000;
+const PLAYER_PREFS_KEY = 'cinamidia_player_prefs';
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
+
+function clampVolume(value) {
+  return Math.max(0, Math.min(1, Number(value)));
+}
+
+function loadPlayerPrefs() {
+  try {
+    const raw = localStorage.getItem(PLAYER_PREFS_KEY);
+    if (!raw) return { volume: 1, muted: false };
+    const parsed = JSON.parse(raw);
+    return {
+      volume: Number.isFinite(parsed?.volume) ? clampVolume(parsed.volume) : 1,
+      muted: Boolean(parsed?.muted),
+    };
+  } catch (e) {
+    return { volume: 1, muted: false };
+  }
+}
+
+let playerPrefs = loadPlayerPrefs();
+
+function getPreferredRemoteVolume() {
+  return playerPrefs.muted ? 0 : clampVolume(playerPrefs.volume);
+}
+
+function savePlayerPrefs() {
+  try {
+    localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify(playerPrefs));
+  } catch (e) { }
+}
+
+function savePlayerPrefsFromVideo(video) {
+  if (!video) return;
+  playerPrefs = {
+    volume: clampVolume(video.volume),
+    muted: Boolean(video.muted),
+  };
+  savePlayerPrefs();
+}
+
+function applyPreferredVolumeToVideo(video) {
+  if (!video) return;
+  video.volume = clampVolume(playerPrefs.volume);
+  video.muted = Boolean(playerPrefs.muted);
+}
 
 function resetPlayerError() {
   const errorEl = document.getElementById('playerError');
@@ -50,9 +96,11 @@ function ensurePlayerVideoListeners() {
   if (!video) return;
 
   const onPlayable = () => maybeHidePlayerErrorWhilePlaying(video);
+  const onVolumeChange = () => savePlayerPrefsFromVideo(video);
   ['playing', 'canplay', 'canplaythrough', 'loadeddata', 'timeupdate'].forEach(evt => {
     video.addEventListener(evt, onPlayable);
   });
+  video.addEventListener('volumechange', onVolumeChange);
   playerVideoListenersBound = true;
 }
 
@@ -321,8 +369,7 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
     loadWithHls(video, hlsUrls, {
       logPrefix: '[HLS foreground]',
       beforePlay: () => {
-        video.muted = false;
-        video.volume = 1;
+        applyPreferredVolumeToVideo(video);
         logVideoState(video, 'before play');
       },
       onManifestParsed: currentUrl => {
@@ -336,8 +383,7 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   }
 
   video.src = originalStreamUrl || fallbackStreamUrl;
-  video.muted = false;
-  video.volume = 1;
+  applyPreferredVolumeToVideo(video);
   await video.play();
   maybeHidePlayerErrorWhilePlaying(video);
   logVideoState(video, 'native hls play');
@@ -519,6 +565,7 @@ async function loadChannel(ch) {
 
   const video = document.getElementById('videoEl');
   await cleanupPlayers(video);
+  applyPreferredVolumeToVideo(video);
 
   const originalStreamUrl = ch.stream_url;
   const streamType = classifyStream(originalStreamUrl);
@@ -561,8 +608,7 @@ async function loadChannel(ch) {
       try {
         // Se for HLS, o SDK da Senza recomenda estar em Foreground para processar localmente
         
-        // Força volume máximo no hardware
-        try { await senza.remotePlayer.setVolume(1.0); } catch (e) { }
+        try { await senza.remotePlayer.setVolume(getPreferredRemoteVolume()); } catch (e) { }
 
         senzaPlayer = new (SenzaPlayerClass); 
         // Shaka Player do Senza se vincula ao video via .attach(videoEl)
