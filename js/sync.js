@@ -86,7 +86,19 @@ async function saveChannelsToStorage(sourceId, parsedList) {
 }
 
 function buildValidationProxyUrl(url) {
-  return `/api/proxy?url=${encodeURIComponent(url)}`;
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+
+  if (raw.startsWith('/api/proxy?url=')) return raw;
+
+  try {
+    const parsed = new URL(raw, window.location.href);
+    if (parsed.pathname === '/api/proxy' && parsed.searchParams.has('url')) {
+      return `${parsed.pathname}${parsed.search}`;
+    }
+  } catch (e) { }
+
+  return `/api/proxy?url=${encodeURIComponent(raw)}`;
 }
 
 function detectValidationStreamType(url) {
@@ -132,7 +144,8 @@ async function fetchWithTimeout(url, init = {}, timeout = 6000) {
 
 async function validateBinaryReachability(url, timeout = 6000) {
   try {
-    const res = await fetchWithTimeout(buildValidationProxyUrl(url), {
+    const testUrl = buildValidationProxyUrl(url);
+    const res = await fetchWithTimeout(testUrl, {
       method: 'GET',
       headers: { Range: 'bytes=0-2047' },
     }, timeout);
@@ -195,7 +208,7 @@ async function validateHlsUrl(url, timeout = 6000) {
 
       if (!childRef) return false;
       const childUrl = resolvePlaylistUrl(childRef, playlistUrl);
-      const childRes = await fetchWithTimeout(childUrl, { method: 'GET' }, timeout);
+      const childRes = await fetchWithTimeout(buildValidationProxyUrl(childUrl), { method: 'GET' }, timeout);
       if (!childRes.ok) return false;
       const childText = await childRes.text();
       if (!/#EXTINF\s*:/i.test(childText) || looksLikeHtmlOrError(childText)) return false;
