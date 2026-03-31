@@ -194,7 +194,7 @@ function handleKey(e) {
   // ─ MAIN GRID navigation ─
   if (!gridRows.length && NAV.zone === 'grid') {
     NAV.zone = 'categories';
-    NAV.catIdx = 0;
+    NAV.catIdx = getActiveSidebarIndex();
   }
 
   e.preventDefault();
@@ -202,15 +202,11 @@ function handleKey(e) {
   if (NAV.zone === 'categories') {
     const items = clampSidebarIndex();
     switch (e.key) {
-      case 'ArrowUp': 
-        NAV.catIdx = Math.max(0, NAV.catIdx - 1); 
+      case 'ArrowUp':
+        if (items.length) NAV.catIdx = (NAV.catIdx - 1 + items.length) % items.length;
         break;
-      case 'ArrowDown': 
-        if (NAV.catIdx < items.length - 1) {
-          NAV.catIdx++;
-        } else {
-          NAV.zone = 'sidebar-footer';
-        }
+      case 'ArrowDown':
+        if (items.length) NAV.catIdx = (NAV.catIdx + 1) % items.length;
         break;
       case 'ArrowRight':
         if (gridRows.length) {
@@ -268,7 +264,7 @@ function handleKey(e) {
               NAV.colIdx--;
             } else {
               NAV.zone = 'categories';
-              NAV.catIdx = 0;
+              NAV.catIdx = getActiveSidebarIndex();
             }
           }
         } else {
@@ -276,7 +272,7 @@ function handleKey(e) {
             NAV.colIdx--;
           } else {
             NAV.zone = 'categories';
-            NAV.catIdx = 0;
+            NAV.catIdx = getActiveSidebarIndex();
           }
         }
         break;
@@ -325,7 +321,7 @@ function handleKey(e) {
         return;
       case 'Escape': case 'GoBack': case 'Backspace':
         NAV.zone = 'categories';
-        NAV.catIdx = 0;
+        NAV.catIdx = getActiveSidebarIndex();
         refreshNavFocus();
         return;
         break;
