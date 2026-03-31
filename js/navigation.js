@@ -281,7 +281,14 @@ function handleKey(e) {
         if (ch) openPlayer(ch.id);
         return;
       case 'Escape': case 'GoBack': case 'Backspace':
-        if (activeCategory) { selectCategory(null); return; }
+        NAV.zone = 'categories';
+        {
+          const chips = [...document.querySelectorAll('.cat-item')];
+          if (!chips.length) return;
+          const activeIdx = chips.findIndex(chip => String(chip.dataset.cat || '') === String(activeCategory || ''));
+          NAV.catIdx = activeIdx >= 0 ? activeIdx : 0;
+        }
+        return;
         break;
       case 'm': case 'M': case 'ContextMenu':
         toggleAdmin(); return;
