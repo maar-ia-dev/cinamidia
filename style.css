@@ -570,6 +570,81 @@ body {
   display: block;
 }
 
+.player-diag-panel {
+  position: absolute;
+  top: 48px;
+  right: 48px;
+  z-index: 271;
+  width: min(760px, 72vw);
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(6, 10, 16, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  display: none;
+}
+
+.player-diag-panel.show {
+  display: block;
+}
+
+.player-diag-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 34px;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.player-diag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+}
+
+.player-diag-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 20px;
+  padding: 2px 0;
+}
+
+.player-diag-row span {
+  color: var(--muted);
+}
+
+.player-diag-row strong {
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-diag-row-full {
+  grid-column: 1 / -1;
+}
+
+#diagStatus.diag-status-good {
+  color: #34d399;
+}
+
+#diagStatus.diag-status-medium {
+  color: #fbbf24;
+}
+
+#diagStatus.diag-status-bad {
+  color: #f87171;
+}
+
+.diag-error-history {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: initial;
+  line-height: 1.35;
+}
+
 .player-info-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 34px;
@@ -728,6 +803,7 @@ body {
   backdrop-filter: blur(16px);
   align-items: center;
   justify-content: center;
+  padding: 18px;
 }
 
 .admin-panel.open {
@@ -901,6 +977,23 @@ body {
   border-radius: 14px;
   padding: 36px;
   width: min(560px, 92vw);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.admin-box::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+}
+
+.admin-box::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .admin-title {

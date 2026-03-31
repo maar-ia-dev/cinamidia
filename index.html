@@ -124,6 +124,23 @@
       <div class="player-info-row"><span>Fonte</span><strong id="infoChannelUrl">-</strong></div>
     </div>
     
+    <div class="player-diag-panel" id="playerDiagPanel">
+      <div class="player-diag-title">Diagnóstico do Canal</div>
+      <div class="player-diag-grid">
+        <div class="player-diag-row"><span>Status</span><strong id="diagStatus">-</strong></div>
+        <div class="player-diag-row"><span>Tipo</span><strong id="diagType">-</strong></div>
+        <div class="player-diag-row"><span>Resolução</span><strong id="diagResolution">-</strong></div>
+        <div class="player-diag-row"><span>Bitrate</span><strong id="diagBitrate">-</strong></div>
+        <div class="player-diag-row"><span>Banda estimada</span><strong id="diagBandwidth">-</strong></div>
+        <div class="player-diag-row"><span>Buffer</span><strong id="diagBuffer">-</strong></div>
+        <div class="player-diag-row"><span>Stalls/Rebuffer</span><strong id="diagStalls">-</strong></div>
+        <div class="player-diag-row"><span>Frames perdidos</span><strong id="diagDropped">-</strong></div>
+        <div class="player-diag-row"><span>Latência carga</span><strong id="diagLatency">-</strong></div>
+        <div class="player-diag-row"><span>Último erro</span><strong id="diagLastError">-</strong></div>
+        <div class="player-diag-row player-diag-row-full"><span>Histórico (5)</span><strong id="diagErrorHistory" class="diag-error-history">-</strong></div>
+      </div>
+    </div>
+    
     <div class="channel-input-overlay" id="channelInputOverlay" aria-hidden="true">
       <div class="channel-input-label">CANAL</div>
       <div class="channel-input-value" id="channelInputValue">0000</div>
@@ -155,9 +172,12 @@
       <!-- TABS -->
       <div class="tabs-header" style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border)">
         <button id="tabM3u" class="admin-tab active" onclick="switchTab('m3u')">🔗 URL M3U</button>
+        <!-- Futuro: reativar aba Xtream Codes
         <button id="tabXtream" class="admin-tab" onclick="switchTab('xtream')">🔑 Xtream Codes</button>
+        -->
         <button id="tabFile" class="admin-tab" onclick="switchTab('file')">📂 Arquivo Local</button>
         <button id="tabDefault" class="admin-tab" onclick="switchTab('default')">🌟 Lista Pública (BR)</button>
+        <button id="tabApp" class="admin-tab" onclick="switchTab('app')">⚙️ Configuração App</button>
       </div>
 
       <!-- TAB: URL M3U -->
@@ -173,7 +193,7 @@
         <span class="sub-label">No Senza, priorize streams MPEG-DASH com fMP4/AAC. Xtream HLS/TS roda apenas como fallback de navegador.</span>
       </div>
 
-      <!-- TAB: XTREAM CODES -->
+      <!-- Futuro: reativar painel Xtream Codes
       <div id="panelXtream" style="display:none">
         <div class="form-group">
           <label>Nome da Fonte</label>
@@ -205,6 +225,7 @@
           <code id="xtreamPreview">Preencha os campos acima...</code>
         </div>
       </div>
+      -->
 
       <!-- TAB: ARQUIVO LOCAL -->
       <div id="panelFile" style="display:none">
@@ -230,26 +251,29 @@
         <span class="sub-label">Selecione as listas e clique em "Adicionar e Sincronizar". O arquivo m3u_list.txt sera relido ao abrir Configuracoes.</span>
       </div>
 
-      <div class="validation-group">
-        <label>
-          <input type="checkbox" id="validateChannels" />
-          Verificar canais (só importa os que funcionam)
-        </label>
-        <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
-      </div>
-
-      <div class="zoom-control-group">
-        <label>Ajuste de Tela (Zoom)</label>
-        <div class="zoom-control-row">
-          <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomOutUi()">-</button>
-          <div class="zoom-value" id="uiScaleValue">100%</div>
-          <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomInUi()">+</button>
-          <button class="btn btn-secondary" type="button" onclick="resetUiScale()">Reset</button>
+      <!-- TAB: CONFIGURACAO APP -->
+      <div id="panelApp" style="display:none">
+        <div class="validation-group" style="margin-top:6px">
+          <label>
+            <input type="checkbox" id="validateChannels" />
+            Verificar canais (só importa os que funcionam)
+          </label>
+          <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
         </div>
-        <span class="sub-label">Diminua para caber na TV (overscan) ou aumente para aproximar.</span>
+
+        <div class="zoom-control-group">
+          <label>Ajuste de Tela (Zoom)</label>
+          <div class="zoom-control-row">
+            <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomOutUi()">-</button>
+            <div class="zoom-value" id="uiScaleValue">100%</div>
+            <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomInUi()">+</button>
+            <button class="btn btn-secondary" type="button" onclick="resetUiScale()">Reset</button>
+          </div>
+          <span class="sub-label">Diminua para caber na TV (overscan) ou aumente para aproximar.</span>
+        </div>
       </div>
       
-      <div class="btn-row">
+      <div class="btn-row" id="adminPrimaryActions">
         <button class="btn btn-primary" onclick="addSource()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 5v14M5 12h14" />

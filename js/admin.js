@@ -92,15 +92,35 @@ function renderSources() {
 
 function switchTab(tab) {
   activeTab = tab;
-  document.getElementById('panelM3u').style.display = tab === 'm3u' ? '' : 'none';
-  document.getElementById('panelXtream').style.display = tab === 'xtream' ? '' : 'none';
-  document.getElementById('panelFile').style.display = tab === 'file' ? '' : 'none';
-  document.getElementById('panelDefault').style.display = tab === 'default' ? '' : 'none';
 
-  document.getElementById('tabM3u').classList.toggle('active', tab === 'm3u');
-  document.getElementById('tabXtream').classList.toggle('active', tab === 'xtream');
-  document.getElementById('tabFile').classList.toggle('active', tab === 'file');
-  document.getElementById('tabDefault').classList.toggle('active', tab === 'default');
+  const panelMap = {
+    m3u: 'panelM3u',
+    xtream: 'panelXtream',
+    file: 'panelFile',
+    default: 'panelDefault',
+    app: 'panelApp',
+  };
+
+  Object.entries(panelMap).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = tab === key ? '' : 'none';
+  });
+
+  const tabMap = {
+    m3u: 'tabM3u',
+    xtream: 'tabXtream',
+    file: 'tabFile',
+    default: 'tabDefault',
+    app: 'tabApp',
+  };
+
+  Object.entries(tabMap).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', tab === key);
+  });
+
+  const primaryActions = document.getElementById('adminPrimaryActions');
+  if (primaryActions) primaryActions.style.display = tab === 'app' ? 'none' : '';
 
   if (tab === 'default') {
     refreshPublicBrChecklist();
@@ -257,10 +277,16 @@ function updateXtreamPreview() {
 }
 
 function buildXtreamUrl() {
-  const host = document.getElementById('xtreamHost').value.trim().replace(/\/+$/, '');
-  const user = document.getElementById('xtreamUser').value.trim();
-  const pass = document.getElementById('xtreamPass').value.trim();
-  const output = document.getElementById('xtreamOutput').value;
+  const hostEl = document.getElementById('xtreamHost');
+  const userEl = document.getElementById('xtreamUser');
+  const passEl = document.getElementById('xtreamPass');
+  const outputEl = document.getElementById('xtreamOutput');
+  if (!hostEl || !userEl || !passEl || !outputEl) return null;
+
+  const host = hostEl.value.trim().replace(/\/+$/, '');
+  const user = userEl.value.trim();
+  const pass = passEl.value.trim();
+  const output = outputEl.value;
   if (!host || !user || !pass) return null;
   return `${host}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=${output}`;
 }
@@ -270,6 +296,7 @@ async function addSource() {
 
   if (activeTab === 'file') return handleFileUpload();
   if (activeTab === 'default') return syncSelectedPublicBrLists();
+  if (activeTab === 'app') { showToast('Esta aba é apenas para configuração do app'); return; }
 
   if (activeTab === 'xtream') {
     label = document.getElementById('xtreamLabel').value.trim();

@@ -19,8 +19,19 @@ const INFO_PANEL_HIDE_DELAY_MS = 5000;
 const CHANNEL_INPUT_DELAY_MS = 1800;
 const CHANNEL_INPUT_OVERLAY_HIDE_MS = 1400;
 const PLAYER_PREFS_KEY = 'cinamidia_player_prefs';
+const DIAG_UPDATE_INTERVAL_MS = 1000;
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
+const DIAG_NO_ERROR_LABEL = 'Nenhum';
+
+let diagPanelVisible = false;
+let diagTimer = null;
+let diagStreamType = '-';
+let diagManifestLatencyMs = null;
+let diagStallCount = 0;
+let diagFatalErrorCount = 0;
+let diagLastError = DIAG_NO_ERROR_LABEL;
+let diagErrorHistory = [];
 
 function clampVolume(value) {
   return Math.max(0, Math.min(1, Number(value)));
@@ -67,6 +78,187 @@ function applyPreferredVolumeToVideo(video) {
   video.muted = Boolean(playerPrefs.muted);
 }
 
+function stripHtmlTags(text) {
+  return String(text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function resetDiagnosticsState(streamType = '-') {
+  diagStreamType = (streamType || '-').toUpperCase();
+  diagManifestLatencyMs = null;
+  diagStallCount = 0;
+  diagFatalErrorCount = 0;
+  diagLastError = DIAG_NO_ERROR_LABEL;
+  diagErrorHistory = [];
+}
+
+function pushDiagnosticsErrorHistory(message) {
+  const clean = stripHtmlTags(message) || 'Erro de playback';
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const entry = `${hh}:${mm} ${clean}`;
+  diagErrorHistory.unshift(entry);
+  if (diagErrorHistory.length > 5) {
+    diagErrorHistory = diagErrorHistory.slice(0, 5);
+  }
+}
+
+function registerDiagnosticsError(message, fatal = false) {
+  const clean = stripHtmlTags(message) || 'Erro de playback';
+  diagLastError = clean;
+  pushDiagnosticsErrorHistory(clean);
+  if (fatal) diagFatalErrorCount++;
+}
+
+function getBufferedAheadSeconds(video) {
+  if (!video || !video.buffered || !video.buffered.length) return 0;
+  const t = video.currentTime;
+  for (let i = 0; i < video.buffered.length; i++) {
+    const start = video.buffered.start(i);
+    const end = video.buffered.end(i);
+    if (t >= start && t <= end) return Math.max(0, end - t);
+  }
+  return 0;
+}
+
+function getDroppedFrames(video) {
+  if (!video) return { dropped: 0, total: 0 };
+
+  if (typeof video.getVideoPlaybackQuality === 'function') {
+    const q = video.getVideoPlaybackQuality();
+    return {
+      dropped: Number(q?.droppedVideoFrames || 0),
+      total: Number(q?.totalVideoFrames || 0),
+    };
+  }
+
+  const dropped = Number(video.webkitDroppedFrameCount || 0);
+  const total = Number(video.webkitDecodedFrameCount || 0);
+  return { dropped, total };
+}
+
+function getShakaStats(video) {
+  const player = video?._shakaInstance;
+  if (!player || typeof player.getStats !== 'function') return null;
+  try {
+    return player.getStats();
+  } catch (e) {
+    return null;
+  }
+}
+
+function getDiagnosticsStatus(snapshot) {
+  if (diagFatalErrorCount > 0) return 'Ruim';
+  if (!snapshot.playing) return 'Pausado';
+  if (snapshot.bufferSec < 0.4) return 'Ruim';
+  if (snapshot.bufferSec < 1.5) return 'Media';
+  if (snapshot.dropRatio > 0.08) return 'Media';
+  return 'Boa';
+}
+
+function getDiagnosticsStatusClass(status) {
+  if (status === 'Boa') return 'diag-status-good';
+  if (status === 'Media' || status === 'Pausado') return 'diag-status-medium';
+  return 'diag-status-bad';
+}
+
+function buildDiagnosticsSnapshot() {
+  const video = document.getElementById('videoEl');
+  const hls = video?._hlsInstance;
+  const hlsMetrics = video?._hlsMetrics || {};
+  const shakaStats = getShakaStats(video);
+  const droppedInfo = getDroppedFrames(video);
+  const totalFrames = Math.max(1, droppedInfo.total);
+  const dropRatio = droppedInfo.dropped / totalFrames;
+  const bufferSec = getBufferedAheadSeconds(video);
+
+  let bitrateKbps = Number(hlsMetrics.lastBitrateKbps || 0);
+  let bandwidthKbps = Number(hlsMetrics.bandwidthKbps || 0);
+  let latencyMs = Number(hlsMetrics.manifestLatencyMs || 0);
+
+  if (shakaStats) {
+    bitrateKbps = Number(shakaStats?.streamBandwidth || shakaStats?.estimatedBandwidth || 0) / 1000;
+    bandwidthKbps = Number(shakaStats?.estimatedBandwidth || 0) / 1000;
+    if (Number.isFinite(shakaStats?.loadLatency)) latencyMs = Number(shakaStats.loadLatency) * 1000;
+  }
+
+  const width = Number(video?.videoWidth || 0);
+  const height = Number(video?.videoHeight || 0);
+
+  return {
+    playing: !!video && !video.paused && !video.ended,
+    resolution: width > 0 && height > 0 ? `${width}x${height}` : '-',
+    bufferSec,
+    dropRatio,
+    dropped: droppedInfo.dropped,
+    totalFrames: droppedInfo.total,
+    bitrateKbps: Number.isFinite(bitrateKbps) && bitrateKbps > 0 ? bitrateKbps : 0,
+    bandwidthKbps: Number.isFinite(bandwidthKbps) && bandwidthKbps > 0 ? bandwidthKbps : 0,
+    latencyMs: Number.isFinite(latencyMs) && latencyMs > 0 ? latencyMs : Number(diagManifestLatencyMs || 0),
+    stalls: diagStallCount,
+    lastError: diagLastError || DIAG_NO_ERROR_LABEL,
+    errorHistory: diagErrorHistory.slice(0, 5),
+    status: '',
+    type: diagStreamType || '-',
+    level: (hls && hls.currentLevel >= 0) ? String(hls.currentLevel) : '-',
+  };
+}
+
+function updateDiagnosticsPanel() {
+  if (!diagPanelVisible) return;
+
+  const panel = document.getElementById('playerDiagPanel');
+  if (!panel) return;
+
+  const snapshot = buildDiagnosticsSnapshot();
+  snapshot.status = getDiagnosticsStatus(snapshot);
+
+  const setValue = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  const statusEl = document.getElementById('diagStatus');
+  if (statusEl) {
+    statusEl.textContent = snapshot.status;
+    statusEl.classList.remove('diag-status-good', 'diag-status-medium', 'diag-status-bad');
+    statusEl.classList.add(getDiagnosticsStatusClass(snapshot.status));
+  }
+  setValue('diagType', snapshot.type);
+  setValue('diagResolution', snapshot.resolution);
+  setValue('diagBitrate', snapshot.bitrateKbps ? `${Math.round(snapshot.bitrateKbps)} kbps` : '-');
+  setValue('diagBandwidth', snapshot.bandwidthKbps ? `${Math.round(snapshot.bandwidthKbps)} kbps` : '-');
+  setValue('diagBuffer', `${snapshot.bufferSec.toFixed(2)} s`);
+  setValue('diagStalls', String(snapshot.stalls));
+  setValue('diagDropped', `${snapshot.dropped}/${snapshot.totalFrames}`);
+  setValue('diagLatency', snapshot.latencyMs ? `${Math.round(snapshot.latencyMs)} ms` : '-');
+  setValue('diagLastError', snapshot.lastError || DIAG_NO_ERROR_LABEL);
+  setValue('diagErrorHistory', snapshot.errorHistory.length ? snapshot.errorHistory.join(' | ') : '-');
+}
+
+function showPlayerDiagnosticsPanel() {
+  const panel = document.getElementById('playerDiagPanel');
+  if (!panel) return;
+  hidePlayerInfoPanel();
+  panel.classList.add('show');
+  diagPanelVisible = true;
+  clearInterval(diagTimer);
+  updateDiagnosticsPanel();
+  diagTimer = setInterval(updateDiagnosticsPanel, DIAG_UPDATE_INTERVAL_MS);
+}
+
+function hidePlayerDiagnosticsPanel() {
+  const panel = document.getElementById('playerDiagPanel');
+  panel?.classList.remove('show');
+  diagPanelVisible = false;
+  clearInterval(diagTimer);
+}
+
+function togglePlayerDiagnosticsPanel() {
+  if (diagPanelVisible) hidePlayerDiagnosticsPanel();
+  else showPlayerDiagnosticsPanel();
+}
+
 function resetPlayerError() {
   const errorEl = document.getElementById('playerError');
   if (!errorEl) return;
@@ -81,6 +273,7 @@ function showPlayerError(message = PLAYER_ERROR_DEFAULT_HTML) {
   const messageEl = errorEl.querySelector('p');
   if (messageEl) messageEl.innerHTML = message;
   errorEl.classList.add('show');
+  registerDiagnosticsError(message, true);
 }
 
 function maybeHidePlayerErrorWhilePlaying(video) {
@@ -102,10 +295,15 @@ function ensurePlayerVideoListeners() {
 
   const onPlayable = () => maybeHidePlayerErrorWhilePlaying(video);
   const onVolumeChange = () => savePlayerPrefsFromVideo(video);
+  const onWaiting = () => {
+    diagStallCount++;
+    if (diagPanelVisible) updateDiagnosticsPanel();
+  };
   ['playing', 'canplay', 'canplaythrough', 'loadeddata', 'timeupdate'].forEach(evt => {
     video.addEventListener(evt, onPlayable);
   });
   video.addEventListener('volumechange', onVolumeChange);
+  video.addEventListener('waiting', onWaiting);
   playerVideoListenersBound = true;
 }
 
@@ -162,6 +360,7 @@ async function cleanupPlayers(video) {
     video._hlsInstance.destroy();
     video._hlsInstance = null;
   }
+  video._hlsMetrics = null;
 
   if (video._shakaInstance) {
     try {
@@ -238,6 +437,7 @@ async function loadWithShaka(video, PlayerClass, streamUrl, useSenzaPlayer = fal
   const player = new PlayerClass();
   video._shakaInstance = player;
   if (useSenzaPlayer) senzaPlayer = player;
+  const loadStartedAt = performance.now();
 
   if (player.attach) {
     await player.attach(video);
@@ -251,6 +451,7 @@ async function loadWithShaka(video, PlayerClass, streamUrl, useSenzaPlayer = fal
   }
 
   await player.load(streamUrl);
+  diagManifestLatencyMs = performance.now() - loadStartedAt;
   await applyPreferredAudioLanguage(player);
   await video.play();
   maybeHidePlayerErrorWhilePlaying(video);
@@ -259,9 +460,17 @@ async function loadWithShaka(video, PlayerClass, streamUrl, useSenzaPlayer = fal
 function loadWithHls(video, streamUrls, options = {}) {
   const urls = [...new Set((Array.isArray(streamUrls) ? streamUrls : [streamUrls]).filter(Boolean))];
   let urlIndex = 0;
+  const hlsMetrics = {
+    manifestLatencyMs: null,
+    lastBitrateKbps: 0,
+    bandwidthKbps: 0,
+    lastError: '',
+  };
+  video._hlsMetrics = hlsMetrics;
 
   const start = () => {
     const currentUrl = urls[urlIndex];
+    const requestStartedAt = performance.now();
     const hls = new Hls({
       enableWorker: false,
       lowLatencyMode: false,
@@ -274,6 +483,8 @@ function loadWithHls(video, streamUrls, options = {}) {
 
     hls.on(Hls.Events.MANIFEST_PARSED, async () => {
       try {
+        hlsMetrics.manifestLatencyMs = performance.now() - requestStartedAt;
+        diagManifestLatencyMs = hlsMetrics.manifestLatencyMs;
         if (options.beforePlay) options.beforePlay();
         await video.play();
         maybeHidePlayerErrorWhilePlaying(video);
@@ -315,10 +526,31 @@ function loadWithHls(video, streamUrls, options = {}) {
       }
     });
 
+    hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+      const level = Number(data?.level);
+      if (Number.isFinite(level)) {
+        hlsMetrics.level = level;
+      }
+      const bw = Number(hls.bandwidthEstimate || 0);
+      if (bw > 0) hlsMetrics.bandwidthKbps = bw / 1000;
+    });
+
+    hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
+      const totalBytes = Number(data?.stats?.total || 0);
+      const durationSec = Number(data?.frag?.duration || 0);
+      if (totalBytes > 0 && durationSec > 0) {
+        hlsMetrics.lastBitrateKbps = (totalBytes * 8) / durationSec / 1000;
+      }
+      const bw = Number(hls.bandwidthEstimate || 0);
+      if (bw > 0) hlsMetrics.bandwidthKbps = bw / 1000;
+    });
+
     hls.on(Hls.Events.ERROR, (_event, data) => {
       if (options.logPrefix) {
         console.error(`${options.logPrefix} error:`, data);
       }
+      hlsMetrics.lastError = String(data?.details || data?.type || 'Erro HLS');
+      registerDiagnosticsError(hlsMetrics.lastError, Boolean(data?.fatal));
       logVideoState(video, `${options.logPrefix || '[HLS]'} fatal=${Boolean(data?.fatal)}`);
 
       if (!data?.fatal) return;
@@ -509,6 +741,7 @@ function updatePlayerInfoPanel(channel, streamType = null) {
 function showPlayerInfoPanel() {
   const panel = document.getElementById('playerInfoPanel');
   if (!panel) return;
+  hidePlayerDiagnosticsPanel();
   const current = currentPlaylist[currentPlayingIndex];
   if (current) updatePlayerInfoPanel(current);
   panel.classList.add('show');
@@ -670,7 +903,9 @@ async function loadChannel(ch) {
   const streamType = classifyStream(originalStreamUrl);
   const streamUrl = getPlaybackUrl(originalStreamUrl, streamType);
   const isHLS = streamType === 'hls';
+  resetDiagnosticsState(streamType);
   updatePlayerInfoPanel(ch, streamType);
+  if (diagPanelVisible) updateDiagnosticsPanel();
 
   if (isSenzaEnvironment() && ENABLE_EXPERIMENTAL_SENZA_HLS && streamType === 'hls') {
     try {
@@ -784,6 +1019,7 @@ async function closePlayer() {
   zapPendingIndex = -1;
   hideZapOverlay(false);
   hidePlayerInfoPanel();
+  hidePlayerDiagnosticsPanel();
   document.getElementById('playerOverlay').classList.remove('open');
   const video = document.getElementById('videoEl');
   await cleanupPlayers(video);

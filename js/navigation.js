@@ -192,6 +192,7 @@ function handleKey(e) {
       .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled);
       
     if (!focusables.length) return;
+    const adminBox = document.querySelector('#adminPanel .admin-box');
 
     let idx = focusables.indexOf(document.activeElement);
     if (idx === -1) idx = 0;
@@ -200,10 +201,12 @@ function handleKey(e) {
       e.preventDefault();
       const nextIdx = (idx + 1) % focusables.length;
       focusables[nextIdx].focus();
+      focusables[nextIdx].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
       e.preventDefault();
       const prevIdx = (idx - 1 + focusables.length) % focusables.length;
       focusables[prevIdx].focus();
+      focusables[prevIdx].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     } else if (e.key === 'Enter' || e.key === 'OK' || e.key === ' ' || e.key === '6') {
       e.preventDefault(); // Impede clique duplicado
       console.log('[Admin] Action Clicked on:', document.activeElement?.id);
@@ -211,6 +214,9 @@ function handleKey(e) {
         document.activeElement.click(); 
       }
       return; 
+    }
+    if (adminBox && document.activeElement) {
+      document.activeElement.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     }
     return;
   }
@@ -242,6 +248,10 @@ function handleKey(e) {
       case 'i': case 'I': case 'Info':
         e.preventDefault();
         if (typeof togglePlayerInfoPanel === 'function') togglePlayerInfoPanel();
+        break;
+      case 'd': case 'D':
+        e.preventDefault();
+        if (typeof togglePlayerDiagnosticsPanel === 'function') togglePlayerDiagnosticsPanel();
         break;
       case 'ArrowRight': case '+': case '=': case 'VolumeUp': {
         e.preventDefault();
