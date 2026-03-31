@@ -78,6 +78,7 @@ function handleKey(e) {
   console.log(`[Key] ${e.key} (code: ${e.keyCode})`);
   const playerOpen = document.getElementById('playerOverlay').classList.contains('open');
   const adminOpen = document.getElementById('adminPanel').classList.contains('open');
+  const firstRunOpen = typeof isFirstRunPanelOpen === 'function' && isFirstRunPanelOpen();
 
   // ─ CONFIRM MODAL ─
   const confOpen = document.getElementById('confirmModal').style.display === 'flex';
@@ -102,6 +103,48 @@ function handleKey(e) {
   }
 
   // ─ ADMIN PANEL open ─
+  if (firstRunOpen) {
+    if (e.key === 'm' || e.key === 'M' || e.key === 'ContextMenu') {
+      e.preventDefault();
+      if (typeof openAdminFromFirstRun === 'function') openAdminFromFirstRun();
+      return;
+    }
+
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
+      e.preventDefault();
+      return;
+    }
+
+    const focusables = [...document.querySelectorAll('#firstRunPanel button, #firstRunPanel input')]
+      .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled);
+    if (!focusables.length) return;
+
+    let idx = focusables.indexOf(document.activeElement);
+    if (idx === -1) idx = 0;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      focusables[(idx + 1) % focusables.length].focus();
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      focusables[(idx - 1 + focusables.length) % focusables.length].focus();
+      return;
+    }
+
+    if (e.key === 'Enter' || e.key === 'OK' || e.key === ' ' || e.key === '6') {
+      e.preventDefault();
+      if (document.activeElement && typeof document.activeElement.click === 'function') {
+        document.activeElement.click();
+      }
+      return;
+    }
+
+    return;
+  }
+
   if (adminOpen) {
     if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
       e.preventDefault(); toggleAdmin(); return;

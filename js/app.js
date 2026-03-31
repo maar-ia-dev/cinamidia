@@ -227,7 +227,11 @@ window.addEventListener('load', async () => {
     if (el) el.addEventListener('input', updateXtreamPreview);
   });
 
-  checkAutoSetup(); 
+  if (typeof checkAndOpenFirstRunPanel === 'function') {
+    await checkAndOpenFirstRunPanel();
+  } else {
+    checkAutoSetup();
+  }
 });
 
 async function checkAutoSetup() {

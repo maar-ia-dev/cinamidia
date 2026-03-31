@@ -723,6 +723,74 @@ body {
   display: flex;
 }
 
+.first-run-panel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background:
+    radial-gradient(circle at 14% 24%, rgba(255, 186, 32, 0.12), transparent 42%),
+    rgba(5, 8, 14, 0.92);
+  backdrop-filter: blur(10px);
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+
+.first-run-panel.open {
+  display: flex;
+}
+
+.first-run-box {
+  width: min(820px, 96vw);
+  max-height: 92vh;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(145deg, #0f1930 0%, #0a1224 62%, #101a32 100%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  padding: 24px;
+}
+
+.first-run-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.first-run-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 42px;
+  letter-spacing: 1px;
+}
+
+.first-run-subtitle {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.first-run-list {
+  max-height: 340px;
+}
+
+.first-run-validation {
+  margin-top: 4px;
+}
+
+.first-run-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.first-run-actions .btn {
+  min-width: 260px;
+}
+
 .admin-box {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1075,6 +1143,14 @@ body.background-mode .content {
 #adminPanel button:focus, 
 #adminPanel input:focus, 
 #adminPanel select:focus {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 15px rgba(255, 171, 0, 0.4) !important;
+  border-color: var(--accent) !important;
+}
+
+#firstRunPanel button:focus,
+#firstRunPanel input:focus {
   outline: 3px solid var(--accent) !important;
   outline-offset: 2px;
   box-shadow: 0 0 15px rgba(255, 171, 0, 0.4) !important;

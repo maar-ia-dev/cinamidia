@@ -25,6 +25,7 @@
   <script src="js/navigation.js" defer></script>
   <script src="js/admin.js" defer></script>
   <script src="js/app.js" defer></script>
+  <script src="js/admin-extra.js" defer></script>
 </head>
 
 <body class="v2-shell">
@@ -251,6 +252,42 @@
 
       <div class="source-list" id="sourceList">
         <!-- Injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRST-RUN SETUP PANEL -->
+  <div class="first-run-panel" id="firstRunPanel" aria-hidden="true">
+    <div class="first-run-box">
+      <div class="first-run-head">
+        <div class="first-run-title">Fontes IPTV</div>
+        <button class="btn btn-secondary" type="button" onclick="openAdminFromFirstRun()">Configuracoes avancadas</button>
+      </div>
+      <p class="first-run-subtitle">Nenhuma lista carregada ainda. Selecione abaixo quais listas publicas deseja sincronizar.</p>
+
+      <div class="public-br-toolbar">
+        <button class="btn btn-secondary" type="button" onclick="togglePublicBrSelection(true, 'firstRunChecklist')">Marcar todas</button>
+        <button class="btn btn-secondary" type="button" onclick="togglePublicBrSelection(false, 'firstRunChecklist')">Desmarcar</button>
+      </div>
+      <div id="firstRunChecklist" class="public-br-list first-run-list">
+        <p class="public-br-empty">Carregando lista publica...</p>
+      </div>
+
+      <div class="validation-group first-run-validation">
+        <label>
+          <input type="checkbox" id="validateChannelsFirstRun" checked />
+          Verificar canais (so importa os que funcionam)
+        </label>
+        <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
+      </div>
+
+      <div class="first-run-actions">
+        <button class="btn btn-primary" type="button" onclick="syncFirstRunSelection()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Adicionar e Sincronizar
+        </button>
       </div>
     </div>
   </div>

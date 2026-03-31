@@ -2,11 +2,59 @@
 let sources = [];
 let activeTab = 'm3u';
 let publicBrOptions = [];
+let firstRunOpen = false;
+
+function isFirstRunPanelOpen() {
+  return firstRunOpen;
+}
+
+function openFirstRunPanel() {
+  const panel = document.getElementById('firstRunPanel');
+  if (!panel) return;
+
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  firstRunOpen = true;
+  NAV.zone = 'first-run';
+
+  const valMain = document.getElementById('validateChannels');
+  const valFirstRun = document.getElementById('validateChannelsFirstRun');
+  if (valMain && valFirstRun) {
+    valFirstRun.checked = !!valMain.checked || valFirstRun.checked;
+  }
+
+  refreshPublicBrChecklist('firstRunChecklist');
+  setTimeout(() => {
+    const first = document.querySelector('#firstRunPanel button, #firstRunPanel input');
+    if (first) first.focus();
+  }, 80);
+}
+
+function closeFirstRunPanel() {
+  const panel = document.getElementById('firstRunPanel');
+  if (!panel) return;
+
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  firstRunOpen = false;
+  if (NAV.zone === 'first-run') {
+    NAV.zone = gridRows.length ? 'grid' : 'categories';
+  }
+}
+
+function openAdminFromFirstRun() {
+  closeFirstRunPanel();
+  if (!document.getElementById('adminPanel').classList.contains('open')) {
+    toggleAdmin();
+  }
+  switchTab('default');
+}
 
 function toggleAdmin() {
   const panel = document.getElementById('adminPanel');
   panel.classList.toggle('open');
   if (panel.classList.contains('open')) {
+    if (firstRunOpen) closeFirstRunPanel();
     NAV.zone = 'admin';
     loadSources();
     refreshPublicBrChecklist();
@@ -90,8 +138,8 @@ function parsePublicBrList(raw) {
   return parsed;
 }
 
-async function refreshPublicBrChecklist() {
-  const container = document.getElementById('publicBrChecklist');
+async function refreshPublicBrChecklist(containerId = 'publicBrChecklist') {
+  const container = document.getElementById(containerId);
   if (!container) return;
 
   container.innerHTML = '<p class="public-br-empty">Carregando lista publica...</p>';
@@ -113,7 +161,7 @@ async function refreshPublicBrChecklist() {
     const existingUrls = new Set((storedSources || []).map((s) => String(s.url || '')));
 
     container.innerHTML = publicBrOptions.map((item, idx) => {
-      const inputId = `publicBrItem${idx}`;
+      const inputId = `${containerId}Item${idx}`;
       const exists = existingUrls.has(item.url);
       return `
 <label class="public-br-item ${exists ? 'existing' : ''}" for="${inputId}">
@@ -132,9 +180,12 @@ async function refreshPublicBrChecklist() {
   }
 }
 
-function togglePublicBrSelection(checked) {
+function togglePublicBrSelection(checked, containerId = 'publicBrChecklist') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
   document
-    .querySelectorAll('#publicBrChecklist input[name="publicBrSource"]:not(:disabled)')
+    .querySelectorAll(`#${containerId} input[name="publicBrSource"]:not(:disabled)`)
     .forEach((input) => {
       input.checked = !!checked;
     });
