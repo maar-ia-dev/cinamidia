@@ -288,6 +288,7 @@ function handleKey(e) {
           const activeIdx = chips.findIndex(chip => String(chip.dataset.cat || '') === String(activeCategory || ''));
           NAV.catIdx = activeIdx >= 0 ? activeIdx : 0;
         }
+        refreshNavFocus();
         return;
         break;
       case 'm': case 'M': case 'ContextMenu':
