@@ -263,15 +263,17 @@
         <div class="first-run-title">Fontes IPTV</div>
         <button class="btn btn-secondary" type="button" onclick="openAdminFromFirstRun()">Configuracoes avancadas</button>
       </div>
-      <p class="first-run-subtitle">Nenhuma lista carregada ainda. Selecione abaixo quais listas publicas deseja sincronizar.</p>
+      <p class="first-run-subtitle">Nenhuma lista carregada ainda. Use OK para selecionar listas. Use Direita para ir direto ao botao de sincronizar.</p>
 
       <div class="public-br-toolbar">
-        <button class="btn btn-secondary" type="button" onclick="togglePublicBrSelection(true, 'firstRunChecklist')">Marcar todas</button>
-        <button class="btn btn-secondary" type="button" onclick="togglePublicBrSelection(false, 'firstRunChecklist')">Desmarcar</button>
+        <button class="btn btn-secondary" id="firstRunSelectAllBtn" type="button" onclick="setFirstRunSelection(true)">Marcar todas</button>
+        <button class="btn btn-secondary" id="firstRunClearBtn" type="button" onclick="setFirstRunSelection(false)">Limpar selecao</button>
+        <button class="btn btn-secondary" id="firstRunGoAddBtn" type="button" onclick="focusFirstRunAddButton()">Ir para adicionar</button>
       </div>
       <div id="firstRunChecklist" class="public-br-list first-run-list">
         <p class="public-br-empty">Carregando lista publica...</p>
       </div>
+      <div class="first-run-summary" id="firstRunSummary">0 listas selecionadas</div>
 
       <div class="validation-group first-run-validation">
         <label>
@@ -282,7 +284,7 @@
       </div>
 
       <div class="first-run-actions">
-        <button class="btn btn-primary" type="button" onclick="syncFirstRunSelection()">
+        <button class="btn btn-primary" id="firstRunAddBtn" type="button" onclick="syncFirstRunSelection()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 5v14M5 12h14" />
           </svg>

@@ -777,6 +777,99 @@ body {
   max-height: 340px;
 }
 
+.first-run-panel .public-br-toolbar {
+  flex-wrap: wrap;
+}
+
+.first-run-source {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, transform .12s;
+}
+
+.first-run-source + .first-run-source {
+  margin-top: 8px;
+}
+
+.first-run-source:hover {
+  border-color: rgba(255, 186, 32, 0.35);
+  background: rgba(255, 186, 32, 0.08);
+}
+
+.first-run-source.is-selected {
+  border-color: rgba(255, 186, 32, 0.72);
+  background: linear-gradient(90deg, rgba(255, 186, 32, 0.18) 0%, rgba(255, 186, 32, 0.05) 100%);
+}
+
+.first-run-source.is-existing {
+  opacity: 0.62;
+}
+
+.first-run-source-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 14px;
+  font-weight: 800;
+  color: #f6f8ff;
+}
+
+.first-run-source.is-selected .first-run-source-mark {
+  background: #ffba20;
+  color: #17130b;
+  border-color: #ffba20;
+}
+
+.first-run-source-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.first-run-source-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.first-run-source-url {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.first-run-source-status {
+  color: rgba(233, 239, 249, 0.88);
+  font-size: 12px;
+  font-weight: 700;
+  padding-left: 12px;
+}
+
+.first-run-summary {
+  margin-top: 10px;
+  margin-bottom: 2px;
+  color: rgba(233, 239, 249, 0.88);
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .first-run-validation {
   margin-top: 4px;
 }

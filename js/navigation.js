@@ -115,30 +115,68 @@ function handleKey(e) {
       return;
     }
 
+    const activeEl = document.activeElement;
+    const sourceButtons = [...document.querySelectorAll('#firstRunChecklist .first-run-source')];
+    const topButtons = [
+      document.getElementById('firstRunSelectAllBtn'),
+      document.getElementById('firstRunClearBtn'),
+      document.getElementById('firstRunGoAddBtn'),
+      document.getElementById('firstRunAddBtn'),
+      document.getElementById('validateChannelsFirstRun')
+    ].filter(Boolean);
+
+    if (e.key === 'ArrowRight' && sourceButtons.includes(activeEl)) {
+      e.preventDefault();
+      document.getElementById('firstRunAddBtn')?.focus();
+      return;
+    }
+
+    if (e.key === 'ArrowLeft' && (activeEl?.id === 'firstRunAddBtn' || activeEl?.id === 'validateChannelsFirstRun')) {
+      e.preventDefault();
+      if (typeof focusFirstRunListItem === 'function') focusFirstRunListItem();
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && topButtons.includes(activeEl) && sourceButtons.length) {
+      e.preventDefault();
+      if (typeof focusFirstRunListItem === 'function') focusFirstRunListItem();
+      else sourceButtons[0].focus();
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && sourceButtons.includes(activeEl)) {
+      e.preventDefault();
+      document.getElementById('firstRunGoAddBtn')?.focus();
+      return;
+    }
+
     const focusables = [...document.querySelectorAll('#firstRunPanel button, #firstRunPanel input')]
       .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled);
     if (!focusables.length) return;
 
-    let idx = focusables.indexOf(document.activeElement);
+    let idx = focusables.indexOf(activeEl);
     if (idx === -1) idx = 0;
 
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       focusables[(idx + 1) % focusables.length].focus();
       return;
     }
 
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    if (e.key === 'ArrowUp') {
       e.preventDefault();
       focusables[(idx - 1 + focusables.length) % focusables.length].focus();
       return;
     }
 
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && sourceButtons.includes(activeEl)) {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === 'Enter' || e.key === 'OK' || e.key === ' ' || e.key === '6') {
       e.preventDefault();
-      if (document.activeElement && typeof document.activeElement.click === 'function') {
-        document.activeElement.click();
-      }
+      if (activeEl && typeof activeEl.click === 'function') activeEl.click();
       return;
     }
 
