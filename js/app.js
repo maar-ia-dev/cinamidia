@@ -17,7 +17,7 @@ let heroImages = [...DEFAULT_HERO_IMAGES];
 let heroRotationTimer = null;
 let currentHeroIndex = -1;
 
-const SIDEBAR_SHORTCUTS = ['home', 'movies', 'series'];
+const SIDEBAR_SHORTCUTS = ['home'];
 const TOP_TABS = ['home', 'launches', 'trending'];
 
 // Navigation/Grid state stored in glass (global)
@@ -54,16 +54,6 @@ function formatViewerChannel(value) {
   return String(Math.floor(n)).padStart(4, '0');
 }
 
-function isMovieChannel(channel) {
-  const haystack = normalizeText(getChannelSearchText(channel));
-  return /(filme|movie|cinema|cine|documentario|longa|curta)/.test(haystack);
-}
-
-function isSeriesChannel(channel) {
-  const haystack = normalizeText(getChannelSearchText(channel));
-  return /(serie|series|show|sitcom|novela|minisserie|anime|kids|infantil)/.test(haystack);
-}
-
 function getTrendingScore(channel) {
   const haystack = normalizeText(getChannelSearchText(channel));
   let score = Number(channel?.id || 0);
@@ -90,8 +80,7 @@ function applyTopTabSort(channels) {
 }
 
 function matchesShortcutFilter(channel) {
-  if (activeShortcut === 'movies') return isMovieChannel(channel);
-  if (activeShortcut === 'series') return isSeriesChannel(channel);
+  void channel;
   return true;
 }
 
@@ -267,13 +256,9 @@ function renderTopTabs() {
 
 function renderSidebarShortcuts() {
   const home = document.getElementById('homeShortcut');
-  const movies = document.getElementById('moviesShortcut');
-  const series = document.getElementById('seriesShortcut');
-  if (!home || !movies || !series) return;
+  if (!home) return;
 
   home.classList.toggle('active', activeShortcut === 'home');
-  movies.classList.toggle('active', activeShortcut === 'movies');
-  series.classList.toggle('active', activeShortcut === 'series');
 }
 
 function setTopTab(id) {
@@ -338,7 +323,7 @@ function renderCatBar() {
 
   bar.innerHTML = `
 ${categories.map(c => `
-  <div class="cat-item ${activeCategory === c.id ? 'active' : ''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')">${h(c.name)}</div>
+  <div class="cat-item ${activeCategory === c.id ? 'active' : ''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')"><span class="material-symbols-outlined cat-icon" aria-hidden="true">tv</span><span class="cat-text">${h(c.name)}</span></div>
 `).join('')}
   `;
 }

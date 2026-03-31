@@ -1114,7 +1114,9 @@ body.v2-shell {
   border-right-width: 0;
   border-radius: 10px;
   padding: 10px 10px;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   font-family: 'Manrope', sans-serif;
   font-size: 12px;
@@ -1124,16 +1126,39 @@ body.v2-shell {
   color: rgba(229, 226, 225, 0.72);
 }
 
+.v2-shell .cat-item .cat-icon {
+  font-size: 18px;
+  color: rgba(229, 226, 225, 0.72);
+  flex: 0 0 auto;
+}
+
+.v2-shell .cat-item .cat-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .v2-shell .cat-item.active {
   color: #ffdca1;
   border-left-color: #ffba20;
   background: linear-gradient(90deg, rgba(255, 186, 32, 0.22) 0%, rgba(255, 186, 32, 0) 100%);
 }
 
+.v2-shell .cat-item.active .cat-icon {
+  color: #ffba20;
+}
+
 .v2-shell .cat-item:hover,
 .v2-shell .cat-item.focused {
   color: #e5e2e1;
   background: rgba(53, 53, 52, 0.6);
+}
+
+.v2-shell .cat-item:hover .cat-icon,
+.v2-shell .cat-item.focused .cat-icon {
+  color: #e5e2e1;
 }
 
 .v2-shell .cat-item.focused {

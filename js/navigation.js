@@ -341,6 +341,27 @@ function clearFocus() {
   document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
 }
 
+function ensureCardVisibleInContent(card) {
+  const content = document.getElementById('content');
+  if (!card || !content) return;
+
+  const contentRect = content.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  const topSafeArea = contentRect.top + 84;
+  const bottomSafeArea = contentRect.bottom - 96;
+
+  if (cardRect.bottom > bottomSafeArea) {
+    const delta = cardRect.bottom - bottomSafeArea;
+    content.scrollBy({ top: delta, behavior: 'smooth' });
+    return;
+  }
+
+  if (cardRect.top < topSafeArea) {
+    const delta = cardRect.top - topSafeArea;
+    content.scrollBy({ top: delta, behavior: 'smooth' });
+  }
+}
+
 function refreshNavFocus() {
   clearFocus();
   if (NAV.zone === 'grid') {
@@ -351,9 +372,12 @@ function refreshNavFocus() {
     }
     if (card) {
       card.classList.add('focused');
-      card.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-      const row = card.closest('.row');
-      if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (activeCategory) {
+        card.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        ensureCardVisibleInContent(card);
+      } else {
+        card.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      }
     }
   } else if (NAV.zone === 'categories') {
     const items = clampSidebarIndex();
