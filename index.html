@@ -41,10 +41,10 @@
     </div>
 
     <div class="v2-shortcuts">
-      <a href="#" id="homeShortcut" class="v2-shortcut" onclick="selectCategory(null); return false;"><span class="material-symbols-outlined">home</span><span>Início</span></a>
-      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">movie</span><span>Filmes</span></a>
-      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">tv</span><span>Séries</span></a>
-      <a href="#" class="v2-shortcut"><span class="material-symbols-outlined">search</span><span>Buscar</span></a>
+      <a href="#" id="homeShortcut" class="v2-shortcut" onclick="setSidebarShortcut('home'); return false;"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
+      <a href="#" id="moviesShortcut" class="v2-shortcut" onclick="setSidebarShortcut('movies'); return false;"><span class="material-symbols-outlined">movie</span><span>Filmes</span></a>
+      <a href="#" id="seriesShortcut" class="v2-shortcut" onclick="setSidebarShortcut('series'); return false;"><span class="material-symbols-outlined">tv</span><span>Series</span></a>
+      <a href="#" id="searchShortcut" class="v2-shortcut" onclick="setSidebarShortcut('search'); return false;"><span class="material-symbols-outlined">search</span><span>Buscar</span></a>
     </div>
     
     <div class="cat-list" id="catBar">
@@ -59,9 +59,9 @@
 
   <header class="v2-topbar">
     <div class="v2-topbar-left">
-      <span>Início</span>
-      <span>Lançamentos</span>
-      <span>Tendências</span>
+      <button id="topHome" class="v2-top-link active" onclick="setTopTab('home')">Inicio</button>
+      <button id="topLaunches" class="v2-top-link" onclick="setTopTab('launches')">Lancamentos</button>
+      <button id="topTrends" class="v2-top-link" onclick="setTopTab('trending')">Tendencias</button>
     </div>
     <div class="v2-topbar-right">
       <span class="material-symbols-outlined">notifications</span>

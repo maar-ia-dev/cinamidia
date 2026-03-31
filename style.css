@@ -1016,6 +1016,7 @@ body.v2-shell {
   padding: 10px 10px;
   border-left: 4px solid transparent;
   border-radius: 10px;
+  font-family: 'Manrope', sans-serif;
   color: rgba(229, 226, 225, 0.64);
   font-size: 12px;
   font-weight: 700;
@@ -1043,6 +1044,7 @@ body.v2-shell {
 .v2-shell .cat-list {
   gap: 6px;
   padding: 6px 16px 16px;
+  overflow-x: visible;
 }
 
 .v2-shell .cat-item {
@@ -1050,8 +1052,10 @@ body.v2-shell {
   border-left-width: 4px;
   border-right-width: 0;
   border-radius: 10px;
+  font-family: 'Manrope', sans-serif;
   font-size: 17px;
   font-weight: 700;
+  letter-spacing: 0;
   color: rgba(229, 226, 225, 0.72);
 }
 
@@ -1065,6 +1069,10 @@ body.v2-shell {
 .v2-shell .cat-item.focused {
   color: #e5e2e1;
   background: rgba(53, 53, 52, 0.6);
+}
+
+.v2-shell .cat-item.focused {
+  transform: none;
 }
 
 .v2-shell .sidebar-bottom {
@@ -1106,7 +1114,13 @@ body.v2-shell {
   gap: 18px;
 }
 
-.v2-topbar-left span {
+.v2-top-link {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: rgba(229, 226, 225, 0.76);
@@ -1114,8 +1128,18 @@ body.v2-shell {
   text-transform: uppercase;
 }
 
-.v2-topbar-left span:first-child {
+.v2-top-link.active {
   color: #ffba20;
+}
+
+.v2-top-link:hover {
+  color: #ffe0a6;
+}
+
+.v2-top-link:focus-visible {
+  outline: 2px solid rgba(255, 186, 32, 0.72);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .v2-topbar-right .material-symbols-outlined {
@@ -1124,11 +1148,15 @@ body.v2-shell {
 
 .v2-shell .content {
   left: var(--v2-sidebar-w);
-  padding: 92px 26px 34px;
+  padding: 92px 26px 46px;
 }
 
 .v2-shell .row-header {
-  padding: 0 12px;
+  padding: 0 18px;
+}
+
+.v2-shell .row {
+  overflow: visible;
 }
 
 .v2-shell .row-title {
@@ -1143,11 +1171,14 @@ body.v2-shell {
 }
 
 .v2-shell .row-scroll {
-  padding: 16px 12px 26px;
+  padding: 22px 18px 40px;
+  overflow-y: visible;
 }
 
 .v2-shell .row-scroll.grid-mode {
-  padding: 22px 12px 64px;
+  padding: 30px 18px 82px;
+  overflow: visible;
+  gap: 20px;
 }
 
 .v2-shell .card {
@@ -1157,6 +1188,7 @@ body.v2-shell {
 }
 
 .v2-shell .card.focused {
+  transform: none;
   border-color: #ffba20;
   box-shadow: 0 0 0 4px rgba(255, 186, 32, 0.2), 0 18px 42px rgba(0, 0, 0, 0.54);
 }

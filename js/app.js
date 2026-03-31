@@ -2,6 +2,9 @@
 let allChannels = [];
 let categories = [];
 let activeCategory = null;
+let activeShortcut = 'home';
+let activeTopTab = 'home';
+let searchQuery = '';
 let senzaReady = false;
 let senzaPlayer = null;
 const DEFAULT_HERO_IMAGES = [
@@ -15,9 +18,91 @@ let heroImages = [...DEFAULT_HERO_IMAGES];
 let heroRotationTimer = null;
 let currentHeroIndex = -1;
 
+const SIDEBAR_SHORTCUTS = ['home', 'movies', 'series', 'search'];
+const TOP_TABS = ['home', 'launches', 'trending'];
+
 // Navigation/Grid state stored in glass (global)
 let gridRows = []; // [{group, channels}]
 window.rowRenderCounts = [];
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function getChannelCategory(channel) {
+  const raw = String(channel?.group_title || channel?.groupTitle || 'Outros').trim();
+  if (!raw) return 'Outros';
+  const primary = raw.split(/[;|]/).map(item => item.trim()).find(Boolean);
+  return primary || 'Outros';
+}
+
+function getChannelSearchText(channel) {
+  return `${channel?.name || ''} ${channel?.group_title || ''} ${channel?.tvg_name || ''}`;
+}
+
+function isMovieChannel(channel) {
+  const haystack = normalizeText(getChannelSearchText(channel));
+  return /(filme|movie|cinema|cine|documentario|longa|curta)/.test(haystack);
+}
+
+function isSeriesChannel(channel) {
+  const haystack = normalizeText(getChannelSearchText(channel));
+  return /(serie|series|show|sitcom|novela|minisserie|anime|kids|infantil)/.test(haystack);
+}
+
+function getTrendingScore(channel) {
+  const haystack = normalizeText(getChannelSearchText(channel));
+  let score = Number(channel?.id || 0);
+
+  if (channel?.logo) score += 15;
+  if (/(4k|uhd|fhd|1080)/.test(haystack)) score += 20;
+  if (/(sport|esporte|news|noticia|filme|movie|serie|infantil|kids)/.test(haystack)) score += 8;
+  return score;
+}
+
+function applyTopTabSort(channels) {
+  const list = [...channels];
+  if (activeTopTab === 'launches') {
+    return list.sort((a, b) => (b.id || 0) - (a.id || 0));
+  }
+  if (activeTopTab === 'trending') {
+    return list.sort((a, b) => {
+      const diff = getTrendingScore(b) - getTrendingScore(a);
+      if (diff !== 0) return diff;
+      return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
+    });
+  }
+  return list;
+}
+
+function matchesShortcutFilter(channel) {
+  if (activeShortcut === 'movies') return isMovieChannel(channel);
+  if (activeShortcut === 'series') return isSeriesChannel(channel);
+  if (activeShortcut === 'search') {
+    const needle = normalizeText(searchQuery);
+    if (!needle) return true;
+    return normalizeText(getChannelSearchText(channel)).includes(needle);
+  }
+  return true;
+}
+
+function buildCategories(channels) {
+  const map = {};
+  channels.forEach(ch => {
+    const group = getChannelCategory(ch);
+    if (!map[group]) map[group] = { id: group, name: group, count: 0 };
+    map[group].count++;
+  });
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+function getBaseChannels() {
+  const scoped = allChannels.filter(matchesShortcutFilter);
+  return applyTopTabSort(scoped);
+}
 
 async function loadHeroImages() {
   try {
@@ -120,19 +205,80 @@ async function checkAutoSetup() {
   }
 }
 
+function renderTopTabs() {
+  const home = document.getElementById('topHome');
+  const launches = document.getElementById('topLaunches');
+  const trends = document.getElementById('topTrends');
+  if (!home || !launches || !trends) return;
+
+  home.classList.toggle('active', activeTopTab === 'home');
+  launches.classList.toggle('active', activeTopTab === 'launches');
+  trends.classList.toggle('active', activeTopTab === 'trending');
+}
+
+function renderSidebarShortcuts() {
+  const home = document.getElementById('homeShortcut');
+  const movies = document.getElementById('moviesShortcut');
+  const series = document.getElementById('seriesShortcut');
+  const search = document.getElementById('searchShortcut');
+  if (!home || !movies || !series || !search) return;
+
+  home.classList.toggle('active', activeShortcut === 'home');
+  movies.classList.toggle('active', activeShortcut === 'movies');
+  series.classList.toggle('active', activeShortcut === 'series');
+  search.classList.toggle('active', activeShortcut === 'search');
+}
+
+function setTopTab(id) {
+  const next = TOP_TABS.includes(id) ? id : 'home';
+  if (activeTopTab === next) return;
+
+  activeTopTab = next;
+  NAV.rowIdx = 0;
+  NAV.colIdx = 0;
+  renderTopTabs();
+  renderCatBar();
+  renderContent();
+  refreshNavFocus();
+}
+
+function setSidebarShortcut(id) {
+  const next = SIDEBAR_SHORTCUTS.includes(id) ? id : 'home';
+  if (next === 'search') {
+    const typed = window.prompt('Buscar canal por nome/categoria:', searchQuery || '');
+    if (typed === null && !searchQuery) return;
+    searchQuery = String(typed ?? searchQuery).trim();
+    if (!searchQuery) {
+      activeShortcut = 'home';
+      showToast('Busca limpa. Exibindo Inicio.');
+    } else {
+      activeShortcut = 'search';
+    }
+  } else {
+    activeShortcut = next;
+    searchQuery = '';
+  }
+
+  activeCategory = null;
+  NAV.zone = 'categories';
+  NAV.catIdx = 0;
+  NAV.rowIdx = 0;
+  NAV.colIdx = 0;
+  renderSidebarShortcuts();
+  renderCatBar();
+  renderContent();
+  refreshNavFocus();
+}
+
 async function loadData() {
   allChannels = await getStored(STORAGE_KEYS.channels);
-  const catMap = {};
-  allChannels.forEach(ch => {
-    const g = ch.group_title || 'Outros';
-    if (!catMap[g]) catMap[g] = { id: g, name: g, count: 0 };
-    catMap[g].count++;
-  });
-  categories = Object.values(catMap).sort((a, b) => a.name.localeCompare(b.name));
 
   const counter = document.getElementById('channelCounter');
   if (counter) counter.textContent = allChannels.length ? `${allChannels.length} canais` : '';
 
+  categories = buildCategories(getBaseChannels());
+  renderTopTabs();
+  renderSidebarShortcuts();
   renderCatBar();
   renderContent();
 }
@@ -141,13 +287,17 @@ async function loadData() {
 function renderCatBar() {
   const bar = document.getElementById('catBar');
   if (!bar) return;
+  categories = buildCategories(getBaseChannels());
+  if (activeCategory && !categories.some(c => c.id === activeCategory)) {
+    activeCategory = null;
+  }
+
   const totalCats = categories.length;
   bar.classList.toggle('cat-list-compact', totalCats > 14);
   bar.classList.toggle('cat-list-dense', totalCats > 24);
-  const homeShortcut = document.getElementById('homeShortcut');
-  if (homeShortcut) {
-    homeShortcut.classList.toggle('active', !activeCategory);
-  }
+
+  renderSidebarShortcuts();
+
   bar.innerHTML = `
 ${categories.map(c => `
   <div class="cat-item ${activeCategory === c.id ? 'active' : ''}" data-cat="${h(c.id)}" onclick="selectCategory('${js(c.id)}')">${h(c.name)}</div>
@@ -214,14 +364,15 @@ function loadMoreCards(ri) {
 }
 
 function renderContent() {
-  if (!activeCategory && allChannels.length > 2000 && categories.length > 0) {
-    activeCategory = categories[0].id;
-    renderCatBar();
+  const baseChannels = getBaseChannels();
+  categories = buildCategories(baseChannels);
+  if (activeCategory && !categories.some(c => c.id === activeCategory)) {
+    activeCategory = null;
   }
 
   const filtered = activeCategory
-    ? allChannels.filter(c => (c.group_title || 'Outros') === activeCategory)
-    : allChannels;
+    ? baseChannels.filter(c => getChannelCategory(c) === activeCategory)
+    : baseChannels;
 
   const contentEl = document.getElementById('content');
   if (!contentEl) return;
@@ -230,7 +381,7 @@ function renderContent() {
     contentEl.innerHTML = `
   <div class="empty">
     <div class="big">📺</div>
-    <p>${allChannels.length ? 'Nenhum canal nessa categoria.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.'}</p>
+    <p>${activeShortcut === 'search' && searchQuery ? `Nenhum canal encontrado para "${h(searchQuery)}".` : (allChannels.length ? 'Nenhum canal nesta selecao.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.')}</p>
   </div>`;
     gridRows = [];
     return;
@@ -238,16 +389,18 @@ function renderContent() {
 
   const grouped = {};
   filtered.forEach(ch => {
-    const g = ch.group_title || 'Outros';
+    const g = getChannelCategory(ch);
     if (!grouped[g]) grouped[g] = [];
     grouped[g].push(ch);
   });
 
-  gridRows = Object.entries(grouped).map(([group, channels]) => ({ group, channels }));
+  gridRows = Object.entries(grouped)
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'pt-BR'))
+    .map(([group, channels]) => ({ group, channels }));
   window.rowRenderCounts = gridRows.map(() => 100); 
 
   contentEl.innerHTML = gridRows.map((row, ri) => {
-    if (!activeCategory && ri > 30) return '';
+    if (!activeCategory && ri > 34) return '';
     const subset = row.channels.slice(0, window.rowRenderCounts[ri]);
     let html = `
 <div class="row" data-row="${ri}">

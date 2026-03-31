@@ -13,6 +13,26 @@ function setupNavigation() {
   });
 }
 
+function getSidebarItems() {
+  return [...document.querySelectorAll('.v2-shortcut, .cat-item')];
+}
+
+function getActiveSidebarIndex() {
+  const items = getSidebarItems();
+  const activeIdx = items.findIndex(item => item.classList.contains('active'));
+  return activeIdx >= 0 ? activeIdx : 0;
+}
+
+function clampSidebarIndex() {
+  const items = getSidebarItems();
+  if (!items.length) {
+    NAV.catIdx = 0;
+    return items;
+  }
+  NAV.catIdx = Math.max(0, Math.min(NAV.catIdx, items.length - 1));
+  return items;
+}
+
 function getGridModeMetrics() {
   const scroll = document.querySelector('.row-scroll.grid-mode');
   if (!scroll) return null;
@@ -158,32 +178,33 @@ function handleKey(e) {
   }
 
   // ─ MAIN GRID navigation ─
-  if (!gridRows.length) {
-    if (e.key === 'm' || e.key === 'M' || e.key === 'ContextMenu') { e.preventDefault(); toggleAdmin(); }
-    return;
+  if (!gridRows.length && NAV.zone === 'grid') {
+    NAV.zone = 'categories';
   }
 
   e.preventDefault();
 
   if (NAV.zone === 'categories') {
-    const chips = [...document.querySelectorAll('.cat-item')];
+    const items = clampSidebarIndex();
     switch (e.key) {
       case 'ArrowUp': 
         NAV.catIdx = Math.max(0, NAV.catIdx - 1); 
         break;
       case 'ArrowDown': 
-        if (NAV.catIdx < chips.length - 1) {
+        if (NAV.catIdx < items.length - 1) {
           NAV.catIdx++;
         } else {
           NAV.zone = 'sidebar-footer';
         }
         break;
       case 'ArrowRight':
-        NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
+        if (gridRows.length) {
+          NAV.zone = 'grid'; NAV.rowIdx = 0; NAV.colIdx = 0;
+        }
         break;
       case 'ArrowLeft': return;
       case 'Enter': case 'OK':
-        chips[NAV.catIdx]?.click(); return;
+        items[NAV.catIdx]?.click(); return;
       case 'm': case 'M': case 'ContextMenu':
         toggleAdmin(); return;
       default: return;
@@ -192,10 +213,12 @@ function handleKey(e) {
     switch (e.key) {
        case 'ArrowUp':
          NAV.zone = 'categories';
-         NAV.catIdx = document.querySelectorAll('.cat-item').length - 1;
+         NAV.catIdx = Math.max(0, getSidebarItems().length - 1);
          break;
        case 'ArrowRight':
-         NAV.zone = 'grid'; NAV.rowIdx = gridRows.length - 1; NAV.colIdx = 0;
+         if (gridRows.length) {
+           NAV.zone = 'grid'; NAV.rowIdx = gridRows.length - 1; NAV.colIdx = 0;
+         }
          break;
        case 'Enter': case 'OK':
          toggleAdmin(); return;
@@ -285,12 +308,7 @@ function handleKey(e) {
         return;
       case 'Escape': case 'GoBack': case 'Backspace':
         NAV.zone = 'categories';
-        {
-          const chips = [...document.querySelectorAll('.cat-item')];
-          if (!chips.length) return;
-          const activeIdx = chips.findIndex(chip => String(chip.dataset.cat || '') === String(activeCategory || ''));
-          NAV.catIdx = activeIdx >= 0 ? activeIdx : 0;
-        }
+        NAV.catIdx = getActiveSidebarIndex();
         refreshNavFocus();
         return;
         break;
@@ -321,10 +339,10 @@ function refreshNavFocus() {
       if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   } else if (NAV.zone === 'categories') {
-    const chips = [...document.querySelectorAll('.cat-item')];
-    if (chips[NAV.catIdx]) {
-      chips[NAV.catIdx].classList.add('focused');
-      chips[NAV.catIdx].scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
+    const items = clampSidebarIndex();
+    if (items[NAV.catIdx]) {
+      items[NAV.catIdx].classList.add('focused');
+      items[NAV.catIdx].scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
     }
   } else if (NAV.zone === 'sidebar-footer') {
     document.querySelector('.admin-toggle')?.classList.add('focused');
