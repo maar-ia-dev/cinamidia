@@ -19,6 +19,17 @@ function getSidebarItems() {
 
 function getActiveSidebarIndex() {
   const items = getSidebarItems();
+  if (!items.length) return 0;
+
+  // Quando há categoria selecionada, prioriza o foco nela ao voltar do grid.
+  if (typeof activeCategory !== 'undefined' && activeCategory) {
+    const catIdx = items.findIndex(item =>
+      item.classList.contains('cat-item') &&
+      String(item.dataset.cat || '') === String(activeCategory)
+    );
+    if (catIdx >= 0) return catIdx;
+  }
+
   const activeIdx = items.findIndex(item => item.classList.contains('active'));
   return activeIdx >= 0 ? activeIdx : 0;
 }
@@ -203,10 +214,18 @@ function handleKey(e) {
     const items = clampSidebarIndex();
     switch (e.key) {
       case 'ArrowUp':
-        if (items.length) NAV.catIdx = (NAV.catIdx - 1 + items.length) % items.length;
+        if (items.length) {
+          NAV.catIdx = (NAV.catIdx - 1 + items.length) % items.length;
+          items[NAV.catIdx]?.click();
+          return;
+        }
         break;
       case 'ArrowDown':
-        if (items.length) NAV.catIdx = (NAV.catIdx + 1) % items.length;
+        if (items.length) {
+          NAV.catIdx = (NAV.catIdx + 1) % items.length;
+          items[NAV.catIdx]?.click();
+          return;
+        }
         break;
       case 'ArrowRight':
         if (gridRows.length) {

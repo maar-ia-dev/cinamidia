@@ -258,7 +258,7 @@ function renderSidebarShortcuts() {
   const home = document.getElementById('homeShortcut');
   if (!home) return;
 
-  home.classList.toggle('active', activeShortcut === 'home');
+  home.classList.toggle('active', activeShortcut === 'home' && !activeCategory);
 }
 
 function setTopTab(id) {
