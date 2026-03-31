@@ -1,7 +1,7 @@
 const UI_SCALE_DEFAULT = 1;
 const UI_SCALE_MIN = 0.6;
 const UI_SCALE_MAX = 1.4;
-const UI_SCALE_STEP = 0.05;
+const UI_SCALE_STEP = 0.01;
 let currentUiScale = UI_SCALE_DEFAULT;
 let uiScaleResizeBound = false;
 
