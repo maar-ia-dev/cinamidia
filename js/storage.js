@@ -1,5 +1,5 @@
 // ─── CLIENT-SIDE STORAGE (IndexedDB) ──────────────────────────────────────────
-const STORAGE_KEYS = { sources: 'cinamidia_sources', channels: 'cinamidia_channels' };
+const STORAGE_KEYS = { sources: 'cinamidia_sources', channels: 'cinamidia_channels', uiPrefs: 'cinamidia_ui_prefs' };
 
 async function getStored(key) {
   try {

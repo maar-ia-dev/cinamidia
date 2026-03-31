@@ -217,6 +217,7 @@ async function initSenza() {
 window.addEventListener('load', async () => {
   await initHeroRotation();
   await initSenza();
+  if (typeof initUiScale === 'function') await initUiScale();
   await loadData();
   setupNavigation();
   updateClock();

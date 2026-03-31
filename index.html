@@ -19,6 +19,7 @@
   <!-- Modularized Application Logic -->
   <script src="js/ui.js" defer></script>
   <script src="js/storage.js" defer></script>
+  <script src="js/ui-scale.js" defer></script>
   <script src="js/parser.js" defer></script>
   <script src="js/sync.js" defer></script>
   <script src="js/player.js" defer></script>
@@ -29,6 +30,7 @@
 </head>
 
 <body class="v2-shell">
+  <div id="uiScaleRoot" class="ui-scale-root">
 
   <!-- SIDEBAR (NETFLIX STYLE) -->
   <nav class="sidebar">
@@ -235,6 +237,17 @@
         </label>
         <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
       </div>
+
+      <div class="zoom-control-group">
+        <label>Ajuste de Tela (Zoom)</label>
+        <div class="zoom-control-row">
+          <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomOutUi()">-</button>
+          <div class="zoom-value" id="uiScaleValue">100%</div>
+          <button class="btn btn-secondary zoom-btn" type="button" onclick="zoomInUi()">+</button>
+          <button class="btn btn-secondary" type="button" onclick="resetUiScale()">Reset</button>
+        </div>
+        <span class="sub-label">Diminua para caber na TV (overscan) ou aumente para aproximar.</span>
+      </div>
       
       <div class="btn-row">
         <button class="btn btn-primary" onclick="addSource()">
@@ -304,6 +317,7 @@
         <button class="btn btn-secondary" id="confirmNo">Não</button>
       </div>
     </div>
+  </div>
   </div>
 
 </body>

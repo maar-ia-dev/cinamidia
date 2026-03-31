@@ -296,17 +296,27 @@ function handleKey(e) {
     switch (e.key) {
       case 'ArrowUp':
         if (items.length) {
-          NAV.catIdx = (NAV.catIdx - 1 + items.length) % items.length;
-          items[NAV.catIdx]?.click();
+          if (NAV.catIdx === 0) {
+            NAV.zone = 'sidebar-footer';
+          } else {
+            NAV.catIdx = NAV.catIdx - 1;
+            items[NAV.catIdx]?.click();
+          }
           return;
         }
+        NAV.zone = 'sidebar-footer';
         break;
       case 'ArrowDown':
         if (items.length) {
-          NAV.catIdx = (NAV.catIdx + 1) % items.length;
-          items[NAV.catIdx]?.click();
+          if (NAV.catIdx === items.length - 1) {
+            NAV.zone = 'sidebar-footer';
+          } else {
+            NAV.catIdx = NAV.catIdx + 1;
+            items[NAV.catIdx]?.click();
+          }
           return;
         }
+        NAV.zone = 'sidebar-footer';
         break;
       case 'ArrowRight':
         if (gridRows.length) {
@@ -325,6 +335,10 @@ function handleKey(e) {
        case 'ArrowUp':
          NAV.zone = 'categories';
          NAV.catIdx = Math.max(0, getSidebarItems().length - 1);
+         break;
+       case 'ArrowDown':
+         NAV.zone = 'categories';
+         NAV.catIdx = 0;
          break;
        case 'ArrowRight':
          if (gridRows.length) {
