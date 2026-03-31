@@ -62,7 +62,7 @@ body {
   flex: 0 0 auto;
   min-height: 62px;
   border-left: 6px solid transparent; border-right: 6px solid transparent;
-  text-align: center; line-height: 1.2;
+  text-align: left; line-height: 1.2;
 }
 .cat-item:hover, .cat-item.focused { color: var(--text); background: var(--surface2); }
 .cat-item.active { 
