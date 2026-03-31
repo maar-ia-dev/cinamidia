@@ -105,6 +105,15 @@ function buildCategories(channels) {
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 }
 
+function getMinViewerChannel(channels) {
+  let min = Number.MAX_SAFE_INTEGER;
+  for (const channel of channels || []) {
+    const number = getViewerChannelNumber(channel);
+    if (number && number < min) min = number;
+  }
+  return min;
+}
+
 function needsViewerChannelNormalization(channels) {
   if (!Array.isArray(channels) || !channels.length) return false;
   const values = [];
@@ -425,9 +434,19 @@ function renderContent() {
     grouped[g].push(ch);
   });
 
-  gridRows = Object.entries(grouped)
-    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'pt-BR'))
-    .map(([group, channels]) => ({ group, channels }));
+  const groupedEntries = Object.entries(grouped);
+  if (!activeCategory && activeShortcut === 'home' && activeTopTab === 'home') {
+    groupedEntries.sort((a, b) => {
+      const minA = getMinViewerChannel(a[1]);
+      const minB = getMinViewerChannel(b[1]);
+      if (minA !== minB) return minA - minB;
+      return a[0].localeCompare(b[0], 'pt-BR');
+    });
+  } else {
+    groupedEntries.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'pt-BR'));
+  }
+
+  gridRows = groupedEntries.map(([group, channels]) => ({ group, channels }));
   window.rowRenderCounts = gridRows.map(() => 100); 
 
   contentEl.innerHTML = gridRows.map((row, ri) => {

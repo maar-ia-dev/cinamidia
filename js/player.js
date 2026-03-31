@@ -9,6 +9,7 @@ let infoPanelVisible = false;
 let infoPanelTimer = null;
 let channelInputBuffer = '';
 let channelInputTimer = null;
+let channelInputOverlayHideTimer = null;
 let playerVideoListenersBound = false;
 const ENABLE_EXPERIMENTAL_SENZA_HLS = true;
 const ZAP_VISIBLE_ITEMS = 5;
@@ -16,6 +17,7 @@ const ZAP_COMMIT_DELAY_MS = 3000;
 const ZAP_HIDE_DELAY_MS = 2400;
 const INFO_PANEL_HIDE_DELAY_MS = 5000;
 const CHANNEL_INPUT_DELAY_MS = 1800;
+const CHANNEL_INPUT_OVERLAY_HIDE_MS = 1400;
 const PLAYER_PREFS_KEY = 'cinamidia_player_prefs';
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
@@ -420,6 +422,30 @@ function findPlaylistIndexByViewerChannel(viewerChannelNumber) {
   return currentPlaylist.findIndex((channel, index) => getChannelViewerNumber(channel, index) === target);
 }
 
+function showChannelInputOverlay(value) {
+  const overlay = document.getElementById('channelInputOverlay');
+  const valueEl = document.getElementById('channelInputValue');
+  if (!overlay || !valueEl) return;
+
+  valueEl.textContent = String(value || '0000').padStart(4, '0');
+  overlay.classList.add('show');
+  clearTimeout(channelInputOverlayHideTimer);
+}
+
+function hideChannelInputOverlay(delayMs = 0) {
+  const overlay = document.getElementById('channelInputOverlay');
+  if (!overlay) return;
+
+  clearTimeout(channelInputOverlayHideTimer);
+  if (delayMs > 0) {
+    channelInputOverlayHideTimer = setTimeout(() => {
+      overlay.classList.remove('show');
+    }, delayMs);
+    return;
+  }
+  overlay.classList.remove('show');
+}
+
 function clearChannelInputBuffer() {
   clearTimeout(channelInputTimer);
   channelInputBuffer = '';
@@ -435,6 +461,8 @@ function commitChannelNumberInput() {
   const targetIdx = findPlaylistIndexByViewerChannel(typedValue);
   if (targetIdx === -1) {
     showToast(`Canal ${formatChannelNumber(typedValue)} nao encontrado`);
+    showChannelInputOverlay(formatChannelNumber(typedValue));
+    hideChannelInputOverlay(CHANNEL_INPUT_OVERLAY_HIDE_MS);
     clearChannelInputBuffer();
     return;
   }
@@ -442,6 +470,8 @@ function commitChannelNumberInput() {
   zapPendingIndex = targetIdx;
   commitZapSelection(true);
   showToast(`Canal ${formatChannelNumber(typedValue)} sintonizado`);
+  showChannelInputOverlay(formatChannelNumber(typedValue));
+  hideChannelInputOverlay(CHANNEL_INPUT_OVERLAY_HIDE_MS);
   clearChannelInputBuffer();
 }
 
@@ -454,7 +484,7 @@ function appendChannelInputDigit(digit) {
   }
 
   channelInputBuffer += String(digit);
-  showToast(`Canal ${channelInputBuffer.padStart(4, '0')}`);
+  showChannelInputOverlay(channelInputBuffer.padStart(4, '0'));
 
   clearTimeout(channelInputTimer);
   channelInputTimer = setTimeout(() => commitChannelNumberInput(), CHANNEL_INPUT_DELAY_MS);
@@ -608,6 +638,7 @@ async function openPlayer(channelId) {
   if (currentPlayingIndex < 0) currentPlayingIndex = 0;
   zapPendingIndex = -1;
   clearChannelInputBuffer();
+  hideChannelInputOverlay();
   hideZapOverlay(false);
   hidePlayerInfoPanel();
 
@@ -619,7 +650,7 @@ async function loadChannel(ch) {
   overlay.classList.add('open');
   ensurePlayerVideoListeners();
 
-  document.getElementById('playerName').textContent = ch.name;
+  document.getElementById('playerName').textContent = `${formatChannelNumber(getChannelViewerNumber(ch, currentPlayingIndex))} | ${ch.name}`;
   document.getElementById('playerCat').textContent = ch.group_title || '';
   const logo = document.getElementById('playerLogo');
   logo.src = ch.logo || '';
@@ -749,6 +780,7 @@ async function closePlayer() {
   clearTimeout(zapCommitTimer);
   clearTimeout(zapHideTimer);
   clearChannelInputBuffer();
+  hideChannelInputOverlay();
   zapPendingIndex = -1;
   hideZapOverlay(false);
   hidePlayerInfoPanel();
@@ -761,6 +793,7 @@ async function closePlayer() {
 function changeChannel(dir) {
   if (currentPlaylist.length === 0) return;
   clearChannelInputBuffer();
+  hideChannelInputOverlay();
   const startIdx = getZapSelectedIndex();
   const nextIdx = (startIdx + dir + currentPlaylist.length) % currentPlaylist.length;
   zapPendingIndex = nextIdx;
