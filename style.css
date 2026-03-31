@@ -271,6 +271,21 @@ body {
   transition: opacity .25s;
 }
 
+.card-number {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(3, 8, 15, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #f6f8ff;
+}
+
 .card .play-icon {
   width: 64px;
   height: 64px;
@@ -305,6 +320,11 @@ body {
 
 .card.focused .play-overlay {
   opacity: 1;
+}
+
+.card.focused .card-number {
+  border-color: rgba(255, 186, 32, 0.75);
+  background: rgba(10, 14, 22, 0.9);
 }
 
 /* ── Global Sync Bar ── */
@@ -1042,20 +1062,24 @@ body.v2-shell {
 }
 
 .v2-shell .cat-list {
-  gap: 6px;
-  padding: 6px 16px 16px;
+  gap: 4px;
+  padding: 2px 16px 16px;
   overflow-x: visible;
 }
 
 .v2-shell .cat-item {
-  min-height: 46px;
+  min-height: 40px;
   border-left-width: 4px;
   border-right-width: 0;
   border-radius: 10px;
+  padding: 10px 10px;
+  display: block;
+  width: 100%;
   font-family: 'Manrope', sans-serif;
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: rgba(229, 226, 225, 0.72);
 }
 
@@ -1073,6 +1097,15 @@ body.v2-shell {
 
 .v2-shell .cat-item.focused {
   transform: none;
+}
+
+.v2-shell .cat-list.cat-list-compact .cat-item,
+.v2-shell .cat-list.cat-list-dense .cat-item {
+  min-height: 40px;
+  font-size: 12px;
+  padding: 10px 10px;
+  border-left-width: 4px;
+  border-right-width: 0;
 }
 
 .v2-shell .sidebar-bottom {

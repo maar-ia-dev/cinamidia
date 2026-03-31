@@ -4,7 +4,6 @@ let categories = [];
 let activeCategory = null;
 let activeShortcut = 'home';
 let activeTopTab = 'home';
-let searchQuery = '';
 let senzaReady = false;
 let senzaPlayer = null;
 const DEFAULT_HERO_IMAGES = [
@@ -18,7 +17,7 @@ let heroImages = [...DEFAULT_HERO_IMAGES];
 let heroRotationTimer = null;
 let currentHeroIndex = -1;
 
-const SIDEBAR_SHORTCUTS = ['home', 'movies', 'series', 'search'];
+const SIDEBAR_SHORTCUTS = ['home', 'movies', 'series'];
 const TOP_TABS = ['home', 'launches', 'trending'];
 
 // Navigation/Grid state stored in glass (global)
@@ -41,6 +40,18 @@ function getChannelCategory(channel) {
 
 function getChannelSearchText(channel) {
   return `${channel?.name || ''} ${channel?.group_title || ''} ${channel?.tvg_name || ''}`;
+}
+
+function getViewerChannelNumber(channel) {
+  const value = Number(channel?.viewer_channel);
+  if (Number.isInteger(value) && value > 0) return value;
+  return null;
+}
+
+function formatViewerChannel(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '----';
+  return String(Math.floor(n)).padStart(4, '0');
 }
 
 function isMovieChannel(channel) {
@@ -81,11 +92,6 @@ function applyTopTabSort(channels) {
 function matchesShortcutFilter(channel) {
   if (activeShortcut === 'movies') return isMovieChannel(channel);
   if (activeShortcut === 'series') return isSeriesChannel(channel);
-  if (activeShortcut === 'search') {
-    const needle = normalizeText(searchQuery);
-    if (!needle) return true;
-    return normalizeText(getChannelSearchText(channel)).includes(needle);
-  }
   return true;
 }
 
@@ -97,6 +103,40 @@ function buildCategories(channels) {
     map[group].count++;
   });
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+function needsViewerChannelNormalization(channels) {
+  if (!Array.isArray(channels) || !channels.length) return false;
+  const values = [];
+  const seen = new Set();
+
+  for (const channel of channels) {
+    const number = getViewerChannelNumber(channel);
+    if (!number) return true;
+    if (seen.has(number)) return true;
+    seen.add(number);
+    values.push(number);
+  }
+
+  values.sort((a, b) => a - b);
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] !== i + 1) return true;
+  }
+  return false;
+}
+
+function normalizeViewerChannels(channels) {
+  const ordered = [...channels].sort((a, b) => {
+    const av = getViewerChannelNumber(a) ?? Number.MAX_SAFE_INTEGER;
+    const bv = getViewerChannelNumber(b) ?? Number.MAX_SAFE_INTEGER;
+    if (av !== bv) return av - bv;
+    return (a?.id || 0) - (b?.id || 0);
+  });
+
+  return ordered.map((channel, index) => ({
+    ...channel,
+    viewer_channel: index + 1,
+  }));
 }
 
 function getBaseChannels() {
@@ -220,13 +260,11 @@ function renderSidebarShortcuts() {
   const home = document.getElementById('homeShortcut');
   const movies = document.getElementById('moviesShortcut');
   const series = document.getElementById('seriesShortcut');
-  const search = document.getElementById('searchShortcut');
-  if (!home || !movies || !series || !search) return;
+  if (!home || !movies || !series) return;
 
   home.classList.toggle('active', activeShortcut === 'home');
   movies.classList.toggle('active', activeShortcut === 'movies');
   series.classList.toggle('active', activeShortcut === 'series');
-  search.classList.toggle('active', activeShortcut === 'search');
 }
 
 function setTopTab(id) {
@@ -244,20 +282,7 @@ function setTopTab(id) {
 
 function setSidebarShortcut(id) {
   const next = SIDEBAR_SHORTCUTS.includes(id) ? id : 'home';
-  if (next === 'search') {
-    const typed = window.prompt('Buscar canal por nome/categoria:', searchQuery || '');
-    if (typed === null && !searchQuery) return;
-    searchQuery = String(typed ?? searchQuery).trim();
-    if (!searchQuery) {
-      activeShortcut = 'home';
-      showToast('Busca limpa. Exibindo Inicio.');
-    } else {
-      activeShortcut = 'search';
-    }
-  } else {
-    activeShortcut = next;
-    searchQuery = '';
-  }
+  activeShortcut = next;
 
   activeCategory = null;
   NAV.zone = 'categories';
@@ -272,6 +297,10 @@ function setSidebarShortcut(id) {
 
 async function loadData() {
   allChannels = await getStored(STORAGE_KEYS.channels);
+  if (needsViewerChannelNormalization(allChannels)) {
+    allChannels = normalizeViewerChannels(allChannels);
+    await setStored(STORAGE_KEYS.channels, allChannels);
+  }
 
   const counter = document.getElementById('channelCounter');
   if (counter) counter.textContent = allChannels.length ? `${allChannels.length} canais` : '';
@@ -328,17 +357,19 @@ function getNoLogoHTML(name) {
 
 function getChannelCardHTML(ri, ci, ch) {
   const fallback = getNoLogoHTML(ch.name);
+  const viewerChannel = formatViewerChannel(getViewerChannelNumber(ch));
   const media = ch.logo
     ? `<img src="${h(ch.logo)}" alt="${h(ch.name)}" loading="lazy" onerror="this.outerHTML=getNoLogoHTML('${js(ch.name)}')"/>`
     : fallback;
 
   return `
     <div class="card" data-row="${ri}" data-col="${ci}" data-id="${ch.id}">
+      <div class="card-number">${viewerChannel}</div>
       ${media}
       <div class="play-overlay">
         <div class="play-icon"><svg width="18" height="18" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
       </div>
-      <div class="card-label">${h(ch.name)}</div>
+      <div class="card-label">${viewerChannel} | ${h(ch.name)}</div>
     </div>`;
 }
 
@@ -381,7 +412,7 @@ function renderContent() {
     contentEl.innerHTML = `
   <div class="empty">
     <div class="big">📺</div>
-    <p>${activeShortcut === 'search' && searchQuery ? `Nenhum canal encontrado para "${h(searchQuery)}".` : (allChannels.length ? 'Nenhum canal nesta selecao.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.')}</p>
+    <p>${allChannels.length ? 'Nenhum canal nesta selecao.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.'}</p>
   </div>`;
     gridRows = [];
     return;

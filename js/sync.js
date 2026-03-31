@@ -57,6 +57,22 @@ async function processM3UContent(sourceId, content) {
   }
 }
 
+function normalizeViewerChannelsForStorage(channels) {
+  const ordered = [...channels].sort((a, b) => {
+    const av = Number(a?.viewer_channel);
+    const bv = Number(b?.viewer_channel);
+    const safeA = Number.isInteger(av) && av > 0 ? av : Number.MAX_SAFE_INTEGER;
+    const safeB = Number.isInteger(bv) && bv > 0 ? bv : Number.MAX_SAFE_INTEGER;
+    if (safeA !== safeB) return safeA - safeB;
+    return (a?.id || 0) - (b?.id || 0);
+  });
+
+  return ordered.map((channel, index) => ({
+    ...channel,
+    viewer_channel: index + 1,
+  }));
+}
+
 async function saveChannelsToStorage(sourceId, parsedList) {
   let storedFull = await getStored(STORAGE_KEYS.channels);
   let storedFiltered = storedFull.filter(ch => ch.source_id !== sourceId);
@@ -71,9 +87,11 @@ async function saveChannelsToStorage(sourceId, parsedList) {
     tvg_id: ch.tvgId || null, 
     tvg_name: ch.tvgName || null, 
     source_id: sourceId,
+    viewer_channel: null,
   }));
 
   storedFiltered = storedFiltered.concat(newChannels);
+  storedFiltered = normalizeViewerChannelsForStorage(storedFiltered);
   await setStored(STORAGE_KEYS.channels, storedFiltered);
 
   const currentSources = await getStored(STORAGE_KEYS.sources);

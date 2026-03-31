@@ -14,6 +14,7 @@ function toggleAdmin() {
     }, 100);
   } else {
     NAV.zone = 'categories';
+    NAV.catIdx = 0;
     document.activeElement?.blur();
     updateCatFocus([...document.querySelectorAll('.cat-item')]);
   }

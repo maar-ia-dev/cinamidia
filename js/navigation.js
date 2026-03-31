@@ -33,6 +33,13 @@ function clampSidebarIndex() {
   return items;
 }
 
+function extractDigitFromKeyEvent(e) {
+  const key = String(e?.key || '');
+  if (/^[0-9]$/.test(key)) return key;
+  if (e?.code && /^Numpad[0-9]$/.test(e.code)) return e.code.replace('Numpad', '');
+  return null;
+}
+
 function getGridModeMetrics() {
   const scroll = document.querySelector('.row-scroll.grid-mode');
   if (!scroll) return null;
@@ -118,6 +125,13 @@ function handleKey(e) {
 
   // ─ PLAYER open ─
   if (playerOpen) {
+    const digit = extractDigitFromKeyEvent(e);
+    if (digit !== null) {
+      e.preventDefault();
+      if (typeof appendChannelInputDigit === 'function') appendChannelInputDigit(digit);
+      return;
+    }
+
     switch (e.key) {
       case 'Escape': case 'Backspace': case 'GoBack':
         e.preventDefault(); closePlayer(); break;
@@ -180,6 +194,7 @@ function handleKey(e) {
   // ─ MAIN GRID navigation ─
   if (!gridRows.length && NAV.zone === 'grid') {
     NAV.zone = 'categories';
+    NAV.catIdx = 0;
   }
 
   e.preventDefault();
@@ -253,6 +268,7 @@ function handleKey(e) {
               NAV.colIdx--;
             } else {
               NAV.zone = 'categories';
+              NAV.catIdx = 0;
             }
           }
         } else {
@@ -260,6 +276,7 @@ function handleKey(e) {
             NAV.colIdx--;
           } else {
             NAV.zone = 'categories';
+            NAV.catIdx = 0;
           }
         }
         break;
@@ -308,7 +325,7 @@ function handleKey(e) {
         return;
       case 'Escape': case 'GoBack': case 'Backspace':
         NAV.zone = 'categories';
-        NAV.catIdx = getActiveSidebarIndex();
+        NAV.catIdx = 0;
         refreshNavFocus();
         return;
         break;

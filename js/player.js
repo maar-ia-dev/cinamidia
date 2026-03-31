@@ -7,12 +7,15 @@ let zapCommitTimer = null;
 let zapPendingIndex = -1;
 let infoPanelVisible = false;
 let infoPanelTimer = null;
+let channelInputBuffer = '';
+let channelInputTimer = null;
 let playerVideoListenersBound = false;
 const ENABLE_EXPERIMENTAL_SENZA_HLS = true;
 const ZAP_VISIBLE_ITEMS = 5;
 const ZAP_COMMIT_DELAY_MS = 3000;
 const ZAP_HIDE_DELAY_MS = 2400;
 const INFO_PANEL_HIDE_DELAY_MS = 5000;
+const CHANNEL_INPUT_DELAY_MS = 1800;
 const PLAYER_PREFS_KEY = 'cinamidia_player_prefs';
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
@@ -390,8 +393,71 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   showToast('HLS nativo em foreground');
 }
 
-function formatChannelNumber(index) {
-  return String((index || 0) + 1).padStart(4, '0');
+function getChannelViewerNumber(channel, fallbackIndex = 0) {
+  const number = Number(channel?.viewer_channel);
+  if (Number.isInteger(number) && number > 0) return number;
+  return (fallbackIndex || 0) + 1;
+}
+
+function formatChannelNumber(number) {
+  const parsed = Number(number);
+  if (!Number.isFinite(parsed) || parsed <= 0) return '----';
+  return String(Math.floor(parsed)).padStart(4, '0');
+}
+
+function getGlobalPlaylist() {
+  return [...(allChannels || [])].sort((a, b) => {
+    const av = getChannelViewerNumber(a, 0);
+    const bv = getChannelViewerNumber(b, 0);
+    if (av !== bv) return av - bv;
+    return (a?.id || 0) - (b?.id || 0);
+  });
+}
+
+function findPlaylistIndexByViewerChannel(viewerChannelNumber) {
+  const target = Number(viewerChannelNumber);
+  if (!Number.isInteger(target) || target <= 0) return -1;
+  return currentPlaylist.findIndex((channel, index) => getChannelViewerNumber(channel, index) === target);
+}
+
+function clearChannelInputBuffer() {
+  clearTimeout(channelInputTimer);
+  channelInputBuffer = '';
+}
+
+function commitChannelNumberInput() {
+  const typedValue = Number.parseInt(channelInputBuffer, 10);
+  if (!Number.isInteger(typedValue) || typedValue <= 0) {
+    clearChannelInputBuffer();
+    return;
+  }
+
+  const targetIdx = findPlaylistIndexByViewerChannel(typedValue);
+  if (targetIdx === -1) {
+    showToast(`Canal ${formatChannelNumber(typedValue)} nao encontrado`);
+    clearChannelInputBuffer();
+    return;
+  }
+
+  zapPendingIndex = targetIdx;
+  commitZapSelection(true);
+  showToast(`Canal ${formatChannelNumber(typedValue)} sintonizado`);
+  clearChannelInputBuffer();
+}
+
+function appendChannelInputDigit(digit) {
+  if (!/^\d$/.test(String(digit))) return;
+  if (!currentPlaylist.length) return;
+
+  if (channelInputBuffer.length >= 4) {
+    channelInputBuffer = '';
+  }
+
+  channelInputBuffer += String(digit);
+  showToast(`Canal ${channelInputBuffer.padStart(4, '0')}`);
+
+  clearTimeout(channelInputTimer);
+  channelInputTimer = setTimeout(() => commitChannelNumberInput(), CHANNEL_INPUT_DELAY_MS);
 }
 
 function updatePlayerInfoPanel(channel, streamType = null) {
@@ -403,7 +469,7 @@ function updatePlayerInfoPanel(channel, streamType = null) {
   if (!channel) return;
 
   const resolvedType = (streamType || classifyStream(channel.stream_url || '') || 'other').toUpperCase();
-  const channelNumber = currentPlayingIndex >= 0 ? formatChannelNumber(currentPlayingIndex) : '----';
+  const channelNumber = formatChannelNumber(getChannelViewerNumber(channel, currentPlayingIndex));
   nameEl.textContent = `${channelNumber} | ${channel.name || '-'}`;
   catEl.textContent = channel.group_title || '-';
   typeEl.textContent = resolvedType;
@@ -488,11 +554,11 @@ function renderZapOverlay(selectedIndex) {
   listEl.innerHTML = currentPlaylist.slice(start, end).map((ch, idx) => {
     const realIdx = start + idx;
     const activeClass = realIdx === selectedIndex ? 'active' : '';
-    return `<div class="zap-item ${activeClass}">${formatChannelNumber(realIdx)}</div>`;
+    return `<div class="zap-item ${activeClass}">${formatChannelNumber(getChannelViewerNumber(ch, realIdx))}</div>`;
   }).join('');
 
   const selected = currentPlaylist[selectedIndex];
-  channelEl.textContent = `${formatChannelNumber(selectedIndex)} | ${selected.name}`;
+  channelEl.textContent = `${formatChannelNumber(getChannelViewerNumber(selected, selectedIndex))} | ${selected.name}`;
   titleEl.textContent = selected.group_title || 'Canal ao vivo';
   timeEl.textContent = 'Ao vivo agora';
 
@@ -537,13 +603,15 @@ async function openPlayer(channelId) {
   const ch = allChannels.find(c => c.id === channelId);
   if (!ch) return;
 
-  currentPlaylist = gridRows.flatMap(r => r.channels);
+  currentPlaylist = getGlobalPlaylist();
   currentPlayingIndex = currentPlaylist.findIndex(c => c.id === channelId);
+  if (currentPlayingIndex < 0) currentPlayingIndex = 0;
   zapPendingIndex = -1;
+  clearChannelInputBuffer();
   hideZapOverlay(false);
   hidePlayerInfoPanel();
 
-  loadChannel(ch);
+  loadChannel(currentPlaylist[currentPlayingIndex]);
 }
 
 async function loadChannel(ch) {
@@ -680,6 +748,7 @@ async function loadChannel(ch) {
 async function closePlayer() {
   clearTimeout(zapCommitTimer);
   clearTimeout(zapHideTimer);
+  clearChannelInputBuffer();
   zapPendingIndex = -1;
   hideZapOverlay(false);
   hidePlayerInfoPanel();
@@ -691,6 +760,7 @@ async function closePlayer() {
 
 function changeChannel(dir) {
   if (currentPlaylist.length === 0) return;
+  clearChannelInputBuffer();
   const startIdx = getZapSelectedIndex();
   const nextIdx = (startIdx + dir + currentPlaylist.length) % currentPlaylist.length;
   zapPendingIndex = nextIdx;
