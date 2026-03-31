@@ -8,6 +8,23 @@ function isFirstRunPanelOpen() {
   return firstRunOpen;
 }
 
+function syncValidateChannelsSetting(source = 'main') {
+  const main = document.getElementById('validateChannels');
+  const inDefaultTab = document.getElementById('validateChannelsDefault');
+  const firstRun = document.getElementById('validateChannelsFirstRun');
+
+  let checked = false;
+  if (source === 'default' && inDefaultTab) checked = !!inDefaultTab.checked;
+  else if (source === 'firstRun' && firstRun) checked = !!firstRun.checked;
+  else if (main) checked = !!main.checked;
+  else if (inDefaultTab) checked = !!inDefaultTab.checked;
+  else if (firstRun) checked = !!firstRun.checked;
+
+  if (main) main.checked = checked;
+  if (inDefaultTab) inDefaultTab.checked = checked;
+  if (firstRun) firstRun.checked = checked;
+}
+
 function openFirstRunPanel() {
   const panel = document.getElementById('firstRunPanel');
   if (!panel) return;
@@ -17,11 +34,7 @@ function openFirstRunPanel() {
   firstRunOpen = true;
   NAV.zone = 'first-run';
 
-  const valMain = document.getElementById('validateChannels');
-  const valFirstRun = document.getElementById('validateChannelsFirstRun');
-  if (valMain && valFirstRun) {
-    valFirstRun.checked = !!valMain.checked || valFirstRun.checked;
-  }
+  syncValidateChannelsSetting('main');
 
   refreshPublicBrChecklist('firstRunChecklist');
   setTimeout(() => {
@@ -56,6 +69,7 @@ function toggleAdmin() {
   if (panel.classList.contains('open')) {
     if (firstRunOpen) closeFirstRunPanel();
     NAV.zone = 'admin';
+    syncValidateChannelsSetting('main');
     loadSources();
     refreshPublicBrChecklist();
     setTimeout(() => {

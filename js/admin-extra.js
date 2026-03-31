@@ -184,9 +184,7 @@ function openFirstRunPanel() {
   const adminPanel = document.getElementById('adminPanel');
   if (adminPanel?.classList.contains('open')) adminPanel.classList.remove('open');
 
-  const valMain = document.getElementById('validateChannels');
-  const valFirstRun = document.getElementById('validateChannelsFirstRun');
-  if (valMain && valFirstRun) valFirstRun.checked = !!valMain.checked || !!valFirstRun.checked;
+  if (typeof syncValidateChannelsSetting === 'function') syncValidateChannelsSetting('main');
 
   loadFirstRunPublicList();
   setTimeout(() => {
@@ -230,7 +228,10 @@ async function syncSelectedPublicBrLists() {
 async function syncFirstRunSelection() {
   const valMain = document.getElementById('validateChannels');
   const valFirstRun = document.getElementById('validateChannelsFirstRun');
-  if (valMain && valFirstRun) valMain.checked = !!valFirstRun.checked;
+  if (valMain && valFirstRun) {
+    valMain.checked = !!valFirstRun.checked;
+    if (typeof syncValidateChannelsSetting === 'function') syncValidateChannelsSetting('main');
+  }
 
   const added = await addAndSyncPublicBrUrls([...firstRunSelectedUrls]);
   const currentSources = await getStored(STORAGE_KEYS.sources);

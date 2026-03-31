@@ -6,6 +6,10 @@ let activeShortcut = 'home';
 let activeTopTab = 'home';
 let senzaReady = false;
 let senzaPlayer = null;
+let searchQuery = '';
+let searchPanelOpen = false;
+let searchKeyRow = 0;
+let searchKeyCol = 0;
 const DEFAULT_HERO_IMAGES = [
   'src/hero/hero1.png',
   'src/hero/hero2.png',
@@ -17,8 +21,16 @@ let heroImages = [...DEFAULT_HERO_IMAGES];
 let heroRotationTimer = null;
 let currentHeroIndex = -1;
 
-const SIDEBAR_SHORTCUTS = ['home'];
-const TOP_TABS = ['home', 'launches', 'trending'];
+const SIDEBAR_SHORTCUTS = ['home', 'search'];
+const TOP_TABS = ['home'];
+const SEARCH_KEYBOARD_LAYOUT = [
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+  ['I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'],
+  ['Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'],
+  ['Y', 'Z', '0', '1', '2', '3', '4', '5'],
+  ['6', '7', '8', '9', 'SPACE', 'BACKSPACE', 'CLEAR'],
+  ['APPLY', 'CLOSE'],
+];
 
 // Navigation/Grid state stored in glass (global)
 let gridRows = []; // [{group, channels}]
@@ -52,6 +64,33 @@ function formatViewerChannel(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return '----';
   return String(Math.floor(n)).padStart(4, '0');
+}
+
+function normalizeSearchDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function matchesSearchQuery(channel, normalizedQuery, digitsQuery, numericOnly = false) {
+  if (!normalizedQuery && !digitsQuery) return false;
+  const viewer = getViewerChannelNumber(channel);
+  let numberMatch = false;
+
+  if (digitsQuery && viewer) {
+    const viewerRaw = String(viewer);
+    const viewerPadded = formatViewerChannel(viewer);
+    const digitsNoLeading = String(Number.parseInt(digitsQuery, 10) || 0);
+    numberMatch = (
+      viewerPadded.startsWith(digitsQuery) ||
+      viewerRaw.startsWith(digitsQuery) ||
+      (digitsNoLeading !== '0' && viewerRaw.startsWith(digitsNoLeading))
+    );
+  }
+
+  if (numericOnly) return numberMatch;
+  if (numberMatch) return true;
+
+  const haystack = normalizeText(getChannelSearchText(channel));
+  return Boolean(normalizedQuery && haystack.includes(normalizedQuery));
 }
 
 function getTrendingScore(channel) {
@@ -219,6 +258,7 @@ window.addEventListener('load', async () => {
   await initSenza();
   if (typeof initUiScale === 'function') await initUiScale();
   await loadData();
+  if (typeof syncValidateChannelsSetting === 'function') syncValidateChannelsSetting('main');
   setupNavigation();
   updateClock();
   setInterval(updateClock, 30000);
@@ -261,9 +301,9 @@ function renderTopTabs() {
 
 function renderSidebarShortcuts() {
   const home = document.getElementById('homeShortcut');
-  if (!home) return;
-
-  home.classList.toggle('active', activeShortcut === 'home' && !activeCategory);
+  const search = document.getElementById('searchShortcut');
+  if (home) home.classList.toggle('active', activeShortcut === 'home' && !activeCategory);
+  if (search) search.classList.toggle('active', activeShortcut === 'search');
 }
 
 function setTopTab(id) {
@@ -281,17 +321,224 @@ function setTopTab(id) {
 
 function setSidebarShortcut(id) {
   const next = SIDEBAR_SHORTCUTS.includes(id) ? id : 'home';
+  if (next !== 'search' && searchPanelOpen) {
+    closeSearchPanel(false);
+  }
   activeShortcut = next;
 
   activeCategory = null;
   NAV.zone = 'categories';
-  NAV.catIdx = 0;
   NAV.rowIdx = 0;
   NAV.colIdx = 0;
   renderSidebarShortcuts();
   renderCatBar();
   renderContent();
+  NAV.catIdx = getActiveSidebarIndex();
   refreshNavFocus();
+}
+
+function isSearchPanelOpen() {
+  return searchPanelOpen;
+}
+
+function getSearchKeyLabel(key) {
+  if (key === 'SPACE') return 'Espaco';
+  if (key === 'BACKSPACE') return 'Apagar';
+  if (key === 'CLEAR') return 'Limpar';
+  if (key === 'APPLY') return 'Buscar';
+  if (key === 'CLOSE') return 'Fechar';
+  return key;
+}
+
+function updateSearchInputDisplay() {
+  const inputEl = document.getElementById('searchInputDisplay');
+  if (!inputEl) return;
+  inputEl.textContent = searchQuery || 'Digite para buscar...';
+  inputEl.classList.toggle('is-empty', !searchQuery);
+}
+
+function setSearchQuery(value, shouldRender = true) {
+  searchQuery = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trimStart()
+    .slice(0, 42);
+  updateSearchInputDisplay();
+  if (shouldRender && activeShortcut === 'search') {
+    NAV.rowIdx = 0;
+    NAV.colIdx = 0;
+    renderContent();
+  }
+}
+
+function appendSearchChar(char) {
+  if (!char) return;
+  setSearchQuery(`${searchQuery}${char}`, true);
+}
+
+function backspaceSearchChar() {
+  if (!searchQuery) return;
+  setSearchQuery(searchQuery.slice(0, -1), true);
+}
+
+function clearSearchQuery() {
+  setSearchQuery('', true);
+}
+
+function getSearchKeyboardRows() {
+  return [...document.querySelectorAll('#searchKeyboard .search-key-row')].map((row) => [...row.querySelectorAll('.search-key')]);
+}
+
+function syncSearchCursorBounds() {
+  const rows = getSearchKeyboardRows();
+  if (!rows.length) {
+    searchKeyRow = 0;
+    searchKeyCol = 0;
+    return rows;
+  }
+
+  if (searchKeyRow < 0) searchKeyRow = rows.length - 1;
+  if (searchKeyRow >= rows.length) searchKeyRow = 0;
+  const cols = rows[searchKeyRow].length || 1;
+  if (searchKeyCol < 0) searchKeyCol = cols - 1;
+  if (searchKeyCol >= cols) searchKeyCol = 0;
+  return rows;
+}
+
+function refreshSearchKeyFocus() {
+  const rows = syncSearchCursorBounds();
+  rows.flat().forEach((key) => key.classList.remove('focused'));
+  const target = rows?.[searchKeyRow]?.[searchKeyCol];
+  if (target) {
+    target.classList.add('focused');
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function renderSearchKeyboard() {
+  const keyboard = document.getElementById('searchKeyboard');
+  if (!keyboard) return;
+
+  keyboard.innerHTML = SEARCH_KEYBOARD_LAYOUT.map((row, rowIdx) => `
+<div class="search-key-row">
+${row.map((key, colIdx) => `
+  <button
+    type="button"
+    class="search-key ${key.length > 1 ? 'search-key-action' : ''}"
+    data-row="${rowIdx}"
+    data-col="${colIdx}"
+    data-key="${h(key)}"
+    onclick="handleSearchVirtualKey('${js(key)}')"
+  >${h(getSearchKeyLabel(key))}</button>
+`).join('')}
+</div>`).join('');
+
+  refreshSearchKeyFocus();
+}
+
+function navigateSearchKeyboard(direction) {
+  if (!searchPanelOpen) return false;
+  const rows = getSearchKeyboardRows();
+  if (!rows.length) return false;
+
+  if (direction === 'left') {
+    searchKeyCol--;
+  } else if (direction === 'right') {
+    searchKeyCol++;
+  } else if (direction === 'up') {
+    searchKeyRow--;
+  } else if (direction === 'down') {
+    searchKeyRow++;
+  }
+
+  syncSearchCursorBounds();
+  const rowLen = rows[searchKeyRow]?.length || 1;
+  if (searchKeyCol >= rowLen) searchKeyCol = rowLen - 1;
+  refreshSearchKeyFocus();
+  return true;
+}
+
+function triggerSearchFocusedKey() {
+  if (!searchPanelOpen) return false;
+  const rows = getSearchKeyboardRows();
+  const key = rows?.[searchKeyRow]?.[searchKeyCol];
+  if (!key) return false;
+  key.click();
+  return true;
+}
+
+function applySearchAndClose() {
+  activeShortcut = 'search';
+  activeCategory = null;
+  NAV.rowIdx = 0;
+  NAV.colIdx = 0;
+  renderSidebarShortcuts();
+  renderCatBar();
+  renderContent();
+  closeSearchPanel(false);
+  if (gridRows.length) {
+    NAV.zone = 'grid';
+  } else {
+    NAV.zone = 'categories';
+    NAV.catIdx = getActiveSidebarIndex();
+  }
+  refreshNavFocus();
+}
+
+function handleSearchVirtualKey(key) {
+  switch (key) {
+    case 'SPACE':
+      appendSearchChar(' ');
+      break;
+    case 'BACKSPACE':
+      backspaceSearchChar();
+      break;
+    case 'CLEAR':
+      clearSearchQuery();
+      break;
+    case 'APPLY':
+      applySearchAndClose();
+      break;
+    case 'CLOSE':
+      closeSearchPanel();
+      break;
+    default:
+      appendSearchChar(key);
+      break;
+  }
+  refreshSearchKeyFocus();
+}
+
+function openSearchPanel() {
+  const panel = document.getElementById('searchPanel');
+  if (!panel) return;
+  activeShortcut = 'search';
+  activeCategory = null;
+  renderSidebarShortcuts();
+  renderCatBar();
+  renderContent();
+
+  searchPanelOpen = true;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  NAV.zone = 'search';
+  searchKeyRow = 0;
+  searchKeyCol = 0;
+  updateSearchInputDisplay();
+  renderSearchKeyboard();
+}
+
+function closeSearchPanel(restoreFocus = true) {
+  const panel = document.getElementById('searchPanel');
+  if (panel) {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+  searchPanelOpen = false;
+  if (restoreFocus) {
+    NAV.zone = 'categories';
+    NAV.catIdx = getActiveSidebarIndex();
+    refreshNavFocus();
+  }
 }
 
 async function loadData() {
@@ -334,6 +581,8 @@ ${categories.map(c => `
 }
 
 function selectCategory(id) {
+  if (searchPanelOpen) closeSearchPanel(false);
+  activeShortcut = 'home';
   activeCategory = id;
   NAV.rowIdx = 0; NAV.colIdx = 0;
   renderCatBar();
@@ -400,47 +649,79 @@ function renderContent() {
     activeCategory = null;
   }
 
+  const normalizedQuery = normalizeText(searchQuery).trim();
+  const digitsQuery = normalizeSearchDigits(searchQuery);
+  const numericOnlyQuery = /^\d+$/.test(String(searchQuery || '').trim());
+
+  let scoped = baseChannels;
+  if (activeShortcut === 'search') {
+    scoped = normalizedQuery
+      ? baseChannels.filter(channel => matchesSearchQuery(channel, normalizedQuery, digitsQuery, numericOnlyQuery))
+      : [];
+  }
+
   const filtered = activeCategory
-    ? baseChannels.filter(c => getChannelCategory(c) === activeCategory)
-    : baseChannels;
+    ? scoped.filter(c => getChannelCategory(c) === activeCategory)
+    : scoped;
 
   const contentEl = document.getElementById('content');
   if (!contentEl) return;
 
   if (!filtered.length) {
+    let emptyText = allChannels.length
+      ? 'Nenhum canal nesta selecao.'
+      : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.';
+
+    if (activeShortcut === 'search' && !normalizedQuery) {
+      emptyText = 'Busca vazia.<br/>Selecione <b>Buscar</b> no menu e digite o numero ou nome do canal.';
+    } else if (activeShortcut === 'search' && normalizedQuery) {
+      emptyText = `Nenhum canal encontrado para <b>"${h(searchQuery)}"</b>.`;
+    }
+
     contentEl.innerHTML = `
   <div class="empty">
     <div class="big">📺</div>
-    <p>${allChannels.length ? 'Nenhum canal nesta selecao.' : 'Nenhuma fonte configurada.<br/>Pressione <kbd>M</kbd> para adicionar uma playlist M3U.'}</p>
+    <p>${emptyText}</p>
   </div>`;
     gridRows = [];
     return;
   }
 
-  const grouped = {};
-  filtered.forEach(ch => {
-    const g = getChannelCategory(ch);
-    if (!grouped[g]) grouped[g] = [];
-    grouped[g].push(ch);
-  });
-
-  const groupedEntries = Object.entries(grouped);
-  if (!activeCategory && activeShortcut === 'home' && activeTopTab === 'home') {
-    groupedEntries.sort((a, b) => {
-      const minA = getMinViewerChannel(a[1]);
-      const minB = getMinViewerChannel(b[1]);
-      if (minA !== minB) return minA - minB;
-      return a[0].localeCompare(b[0], 'pt-BR');
+  if (activeShortcut === 'search') {
+    const sorted = [...filtered].sort((a, b) => {
+      const av = getViewerChannelNumber(a) || Number.MAX_SAFE_INTEGER;
+      const bv = getViewerChannelNumber(b) || Number.MAX_SAFE_INTEGER;
+      if (av !== bv) return av - bv;
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'pt-BR');
     });
+    gridRows = [{ group: `Busca: ${searchQuery}`, channels: sorted }];
   } else {
-    groupedEntries.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'pt-BR'));
+    const grouped = {};
+    filtered.forEach(ch => {
+      const g = getChannelCategory(ch);
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push(ch);
+    });
+
+    const groupedEntries = Object.entries(grouped);
+    if (!activeCategory && activeShortcut === 'home' && activeTopTab === 'home') {
+      groupedEntries.sort((a, b) => {
+        const minA = getMinViewerChannel(a[1]);
+        const minB = getMinViewerChannel(b[1]);
+        if (minA !== minB) return minA - minB;
+        return a[0].localeCompare(b[0], 'pt-BR');
+      });
+    } else {
+      groupedEntries.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'pt-BR'));
+    }
+
+    gridRows = groupedEntries.map(([group, channels]) => ({ group, channels }));
   }
 
-  gridRows = groupedEntries.map(([group, channels]) => ({ group, channels }));
   window.rowRenderCounts = gridRows.map(() => 100); 
 
   contentEl.innerHTML = gridRows.map((row, ri) => {
-    if (!activeCategory && ri > 34) return '';
+    if (activeShortcut !== 'search' && !activeCategory && ri > 34) return '';
     const subset = row.channels.slice(0, window.rowRenderCounts[ri]);
     let html = `
 <div class="row" data-row="${ri}">
@@ -448,7 +729,7 @@ function renderContent() {
     <span class="row-title">${h(row.group)}</span>
     <span class="row-count">${row.channels.length} canais</span>
   </div>
-  <div class="row-scroll ${activeCategory ? 'grid-mode' : ''}" id="rowScroll${ri}">`;
+  <div class="row-scroll ${activeCategory || activeShortcut === 'search' ? 'grid-mode' : ''}" id="rowScroll${ri}">`;
     html += subset.map((ch, ci) => getChannelCardHTML(ri, ci, ch)).join('');
     html += `</div></div>`;
     return html;

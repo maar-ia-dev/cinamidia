@@ -44,7 +44,8 @@
     </div>
 
     <div class="v2-shortcuts">
-      <a href="#" id="homeShortcut" class="v2-shortcut" onclick="setSidebarShortcut('home'); return false;"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
+      <a href="#" id="homeShortcut" class="v2-shortcut" data-shortcut="home" onclick="setSidebarShortcut('home'); return false;"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
+      <a href="#" id="searchShortcut" class="v2-shortcut" data-shortcut="search" onclick="setSidebarShortcut('search'); openSearchPanel(); return false;"><span class="material-symbols-outlined">search</span><span>Buscar</span></a>
     </div>
     
     <div class="cat-list" id="catBar">
@@ -57,18 +58,6 @@
     </div>
   </nav>
 
-  <header class="v2-topbar">
-    <div class="v2-topbar-left">
-      <button id="topHome" class="v2-top-link active" onclick="setTopTab('home')">Inicio</button>
-      <button id="topLaunches" class="v2-top-link" onclick="setTopTab('launches')">Lancamentos</button>
-      <button id="topTrends" class="v2-top-link" onclick="setTopTab('trending')">Tendencias</button>
-    </div>
-    <div class="v2-topbar-right">
-      <span class="material-symbols-outlined">notifications</span>
-      <span class="material-symbols-outlined">account_circle</span>
-    </div>
-  </header>
-
   <div class="hero-backdrop" id="heroBackdrop" aria-hidden="true"></div>
 
   <!-- CONTENT (horizontal rows) -->
@@ -78,6 +67,18 @@
       <p>Nenhuma fonte configurada.<br />Pressione <kbd>M</kbd> ou <kbd>MENU</kbd> para adicionar uma playlist M3U.</p>
     </div>
   </main>
+
+  <div class="search-panel" id="searchPanel" aria-hidden="true">
+    <div class="search-box">
+      <div class="search-head">
+        <div class="search-title">Buscar Canais</div>
+        <button type="button" class="btn btn-secondary search-close-btn" onclick="closeSearchPanel()">Fechar</button>
+      </div>
+      <div class="search-input-display" id="searchInputDisplay">Digite para buscar...</div>
+      <div class="search-input-hint">Use setas e OK no controle para digitar letra por letra.</div>
+      <div class="search-keyboard" id="searchKeyboard"></div>
+    </div>
+  </div>
 
   <!-- GLOBAL SYNC NOTIFY (fixed top) -->
   <div class="global-sync-bar" id="globalSyncBar">
@@ -249,13 +250,20 @@
           <p class="public-br-empty">Carregando lista publica...</p>
         </div>
         <span class="sub-label">Selecione as listas e clique em "Adicionar e Sincronizar". O arquivo m3u_list.txt sera relido ao abrir Configuracoes.</span>
+        <div class="validation-group" style="margin-top:10px">
+          <label>
+            <input type="checkbox" id="validateChannelsDefault" onchange="syncValidateChannelsSetting('default')" />
+            Verificar canais (só importa os que funcionam)
+          </label>
+          <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
+        </div>
       </div>
 
       <!-- TAB: CONFIGURACAO APP -->
       <div id="panelApp" style="display:none">
         <div class="validation-group" style="margin-top:6px">
           <label>
-            <input type="checkbox" id="validateChannels" />
+            <input type="checkbox" id="validateChannels" onchange="syncValidateChannelsSetting('main')" />
             Verificar canais (só importa os que funcionam)
           </label>
           <span class="sub-label">Leva mais tempo mas filtra canais offline</span>
@@ -314,7 +322,7 @@
 
       <div class="validation-group first-run-validation">
         <label>
-          <input type="checkbox" id="validateChannelsFirstRun" checked />
+          <input type="checkbox" id="validateChannelsFirstRun" checked onchange="syncValidateChannelsSetting('firstRun')" />
           Verificar canais (so importa os que funcionam)
         </label>
         <span class="sub-label">Leva mais tempo mas filtra canais offline</span>

@@ -44,6 +44,17 @@ function clampSidebarIndex() {
   return items;
 }
 
+function activateSidebarItem(item, openSearch = false) {
+  if (!item) return;
+  const shortcut = String(item.dataset.shortcut || '');
+  if (shortcut === 'search') {
+    if (typeof setSidebarShortcut === 'function') setSidebarShortcut('search');
+    if (openSearch && typeof openSearchPanel === 'function') openSearchPanel();
+    return;
+  }
+  item.click();
+}
+
 function extractDigitFromKeyEvent(e) {
   const key = String(e?.key || '');
   if (/^[0-9]$/.test(key)) return key;
@@ -79,6 +90,7 @@ function handleKey(e) {
   const playerOpen = document.getElementById('playerOverlay').classList.contains('open');
   const adminOpen = document.getElementById('adminPanel').classList.contains('open');
   const firstRunOpen = typeof isFirstRunPanelOpen === 'function' && isFirstRunPanelOpen();
+  const searchOpen = typeof isSearchPanelOpen === 'function' && isSearchPanelOpen();
 
   // ─ CONFIRM MODAL ─
   const confOpen = document.getElementById('confirmModal').style.display === 'flex';
@@ -181,6 +193,50 @@ function handleKey(e) {
     }
 
     return;
+  }
+
+  if (searchOpen) {
+    const digit = extractDigitFromKeyEvent(e);
+    if (digit !== null && typeof appendSearchChar === 'function') {
+      e.preventDefault();
+      appendSearchChar(digit);
+      return;
+    }
+
+    if (/^[a-zA-Z]$/.test(String(e.key || '')) && typeof appendSearchChar === 'function') {
+      e.preventDefault();
+      appendSearchChar(String(e.key).toUpperCase());
+      return;
+    }
+
+    switch (e.key) {
+      case 'Escape': case 'Backspace': case 'GoBack':
+        e.preventDefault();
+        if (typeof closeSearchPanel === 'function') closeSearchPanel();
+        return;
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (typeof navigateSearchKeyboard === 'function') navigateSearchKeyboard('left');
+        return;
+      case 'ArrowRight':
+        e.preventDefault();
+        if (typeof navigateSearchKeyboard === 'function') navigateSearchKeyboard('right');
+        return;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (typeof navigateSearchKeyboard === 'function') navigateSearchKeyboard('up');
+        return;
+      case 'ArrowDown':
+        e.preventDefault();
+        if (typeof navigateSearchKeyboard === 'function') navigateSearchKeyboard('down');
+        return;
+      case 'Enter': case 'OK': case ' ': case '6':
+        e.preventDefault();
+        if (typeof triggerSearchFocusedKey === 'function') triggerSearchFocusedKey();
+        return;
+      default:
+        return;
+    }
   }
 
   if (adminOpen) {
@@ -310,7 +366,7 @@ function handleKey(e) {
             NAV.zone = 'sidebar-footer';
           } else {
             NAV.catIdx = NAV.catIdx - 1;
-            items[NAV.catIdx]?.click();
+            activateSidebarItem(items[NAV.catIdx], false);
           }
           return;
         }
@@ -322,7 +378,7 @@ function handleKey(e) {
             NAV.zone = 'sidebar-footer';
           } else {
             NAV.catIdx = NAV.catIdx + 1;
-            items[NAV.catIdx]?.click();
+            activateSidebarItem(items[NAV.catIdx], false);
           }
           return;
         }
@@ -335,7 +391,7 @@ function handleKey(e) {
         break;
       case 'ArrowLeft': return;
       case 'Enter': case 'OK':
-        items[NAV.catIdx]?.click(); return;
+        activateSidebarItem(items[NAV.catIdx], true); return;
       case 'm': case 'M': case 'ContextMenu':
         toggleAdmin(); return;
       default: return;
@@ -484,7 +540,9 @@ function ensureCardVisibleInContent(card) {
 
 function refreshNavFocus() {
   clearFocus();
-  if (NAV.zone === 'grid') {
+  if (NAV.zone === 'search') {
+    if (typeof refreshSearchKeyFocus === 'function') refreshSearchKeyFocus();
+  } else if (NAV.zone === 'grid') {
     let card = document.querySelector(`.card[data-row="${NAV.rowIdx}"][data-col="${NAV.colIdx}"]`);
     if (!card && activeCategory) {
       ensureRowCardsLoaded(NAV.rowIdx, NAV.colIdx);
