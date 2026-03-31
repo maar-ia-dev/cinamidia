@@ -10,7 +10,7 @@ let infoPanelTimer = null;
 let playerVideoListenersBound = false;
 const ENABLE_EXPERIMENTAL_SENZA_HLS = true;
 const ZAP_VISIBLE_ITEMS = 5;
-const ZAP_COMMIT_DELAY_MS = 850;
+const ZAP_COMMIT_DELAY_MS = 3000;
 const ZAP_HIDE_DELAY_MS = 2400;
 const INFO_PANEL_HIDE_DELAY_MS = 5000;
 

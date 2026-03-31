@@ -406,7 +406,7 @@ body {
   gap: 14px;
   padding: 14px 18px 14px 10px;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -416,16 +416,16 @@ body {
 
 .zap-overlay::before {
   content: '';
-  position: absolute;
-  top: -18px;
-  bottom: -18px;
-  left: -18px;
-  width: 230px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(52vw, 560px);
   background:
-    radial-gradient(circle at 20% 50%, rgba(232, 160, 32, 0.18), transparent 46%),
-    linear-gradient(90deg, rgba(6, 10, 16, 0.86) 0%, rgba(6, 10, 16, 0.62) 52%, rgba(6, 10, 16, 0) 100%);
-  border-radius: 18px;
+    radial-gradient(circle at 16% 50%, rgba(232, 160, 32, 0.12), transparent 48%),
+    linear-gradient(90deg, rgba(4, 8, 14, 0.86) 0%, rgba(4, 8, 14, 0.62) 38%, rgba(4, 8, 14, 0.32) 64%, rgba(4, 8, 14, 0) 100%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .zap-list {

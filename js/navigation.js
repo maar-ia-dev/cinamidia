@@ -107,7 +107,11 @@ function handleKey(e) {
         e.preventDefault(); changeChannel(1); break;
       case 'Enter': case 'OK':
         e.preventDefault();
-        if (typeof togglePlayerPause === 'function') togglePlayerPause();
+        if (typeof isZapMenuVisible === 'function' && isZapMenuVisible() && typeof confirmZapSelection === 'function') {
+          confirmZapSelection();
+        } else if (typeof togglePlayerPause === 'function') {
+          togglePlayerPause();
+        }
         break;
       case 'i': case 'I': case 'Info':
         e.preventDefault();
