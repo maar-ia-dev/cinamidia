@@ -417,10 +417,14 @@ body {
 .zap-overlay::before {
   content: '';
   position: absolute;
-  inset: 0;
+  top: -18px;
+  bottom: -18px;
+  left: -18px;
+  width: 230px;
   background:
-    radial-gradient(circle at 10% 50%, rgba(232, 160, 32, 0.14), transparent 40%),
-    linear-gradient(90deg, rgba(6, 10, 16, 0.82) 0%, rgba(6, 10, 16, 0.58) 45%, rgba(6, 10, 16, 0.28) 72%, rgba(6, 10, 16, 0) 100%);
+    radial-gradient(circle at 20% 50%, rgba(232, 160, 32, 0.18), transparent 46%),
+    linear-gradient(90deg, rgba(6, 10, 16, 0.86) 0%, rgba(6, 10, 16, 0.62) 52%, rgba(6, 10, 16, 0) 100%);
+  border-radius: 18px;
   pointer-events: none;
 }
 
