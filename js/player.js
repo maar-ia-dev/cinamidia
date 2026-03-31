@@ -2,7 +2,14 @@
 let currentPlayingIndex = -1; // index in currentPlaylist
 let currentPlaylist = [];     // flat list for channel switching
 let hudTimer = null;
+let zapHideTimer = null;
+let zapCommitTimer = null;
+let zapPendingIndex = -1;
+let infoPanelVisible = false;
 const ENABLE_EXPERIMENTAL_SENZA_HLS = true;
+const ZAP_VISIBLE_ITEMS = 5;
+const ZAP_COMMIT_DELAY_MS = 850;
+const ZAP_HIDE_DELAY_MS = 2400;
 
 const PLAYER_ERROR_DEFAULT_HTML = 'Nao foi possivel carregar este canal.<br />O servidor pode estar offline ou bloquear CORS.';
 
@@ -307,12 +314,154 @@ async function loadExperimentalSenzaHls(video, originalStreamUrl, fallbackStream
   showToast('HLS nativo em foreground');
 }
 
+function formatChannelNumber(index) {
+  return String((index || 0) + 1).padStart(4, '0');
+}
+
+function updatePlayerInfoPanel(channel, streamType = null) {
+  const nameEl = document.getElementById('infoChannelName');
+  const catEl = document.getElementById('infoChannelCategory');
+  const typeEl = document.getElementById('infoChannelType');
+  const urlEl = document.getElementById('infoChannelUrl');
+  if (!nameEl || !catEl || !typeEl || !urlEl) return;
+  if (!channel) return;
+
+  const resolvedType = (streamType || classifyStream(channel.stream_url || '') || 'other').toUpperCase();
+  const channelNumber = currentPlayingIndex >= 0 ? formatChannelNumber(currentPlayingIndex) : '----';
+  nameEl.textContent = `${channelNumber} | ${channel.name || '-'}`;
+  catEl.textContent = channel.group_title || '-';
+  typeEl.textContent = resolvedType;
+  urlEl.textContent = channel.stream_url || '-';
+}
+
+function showPlayerInfoPanel() {
+  const panel = document.getElementById('playerInfoPanel');
+  if (!panel) return;
+  const current = currentPlaylist[currentPlayingIndex];
+  if (current) updatePlayerInfoPanel(current);
+  panel.classList.add('show');
+  infoPanelVisible = true;
+}
+
+function hidePlayerInfoPanel() {
+  const panel = document.getElementById('playerInfoPanel');
+  panel?.classList.remove('show');
+  infoPanelVisible = false;
+}
+
+function togglePlayerInfoPanel() {
+  if (infoPanelVisible) hidePlayerInfoPanel();
+  else showPlayerInfoPanel();
+}
+
+function togglePlayerPause() {
+  const video = document.getElementById('videoEl');
+  if (!video) return;
+
+  if (isZapMenuVisible()) {
+    clearTimeout(zapCommitTimer);
+    zapPendingIndex = -1;
+    hideZapOverlay(false);
+  }
+
+  if (video.paused || video.ended) {
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => showPlayerError('Nao foi possivel retomar a reprodução.'));
+    }
+    showToast('▶ Reproduzindo');
+  } else {
+    video.pause();
+    showToast('⏸ Pausado');
+  }
+
+  showHud();
+}
+
+function isZapMenuVisible() {
+  return document.getElementById('zapOverlay')?.classList.contains('show') ?? false;
+}
+
+function getZapSelectedIndex() {
+  return zapPendingIndex >= 0 ? zapPendingIndex : currentPlayingIndex;
+}
+
+function scheduleZapHide() {
+  clearTimeout(zapHideTimer);
+  zapHideTimer = setTimeout(() => hideZapOverlay(), ZAP_HIDE_DELAY_MS);
+}
+
+function renderZapOverlay(selectedIndex) {
+  const overlay = document.getElementById('zapOverlay');
+  const listEl = document.getElementById('zapList');
+  const channelEl = document.getElementById('zapChannelLabel');
+  const titleEl = document.getElementById('zapProgramTitle');
+  const timeEl = document.getElementById('zapProgramTime');
+  if (!overlay || !listEl || !channelEl || !titleEl || !timeEl) return;
+  if (!currentPlaylist.length || selectedIndex < 0 || selectedIndex >= currentPlaylist.length) return;
+
+  const half = Math.floor(ZAP_VISIBLE_ITEMS / 2);
+  let start = Math.max(0, selectedIndex - half);
+  let end = Math.min(currentPlaylist.length, start + ZAP_VISIBLE_ITEMS);
+  start = Math.max(0, end - ZAP_VISIBLE_ITEMS);
+
+  listEl.innerHTML = currentPlaylist.slice(start, end).map((ch, idx) => {
+    const realIdx = start + idx;
+    const activeClass = realIdx === selectedIndex ? 'active' : '';
+    return `<div class="zap-item ${activeClass}">${formatChannelNumber(realIdx)}</div>`;
+  }).join('');
+
+  const selected = currentPlaylist[selectedIndex];
+  channelEl.textContent = `${formatChannelNumber(selectedIndex)} | ${selected.name}`;
+  titleEl.textContent = selected.group_title || 'Canal ao vivo';
+  timeEl.textContent = 'Ao vivo agora';
+
+  overlay.classList.add('show');
+}
+
+function showZapOverlay(selectedIndex) {
+  renderZapOverlay(selectedIndex);
+  document.getElementById('playerHud')?.classList.add('hidden');
+  scheduleZapHide();
+}
+
+function hideZapOverlay(restoreHud = true) {
+  clearTimeout(zapHideTimer);
+  const overlay = document.getElementById('zapOverlay');
+  overlay?.classList.remove('show');
+  if (restoreHud && document.getElementById('playerOverlay')?.classList.contains('open')) {
+    showHud();
+  }
+}
+
+function commitZapSelection(hideNow = false) {
+  clearTimeout(zapCommitTimer);
+  const targetIdx = getZapSelectedIndex();
+  const shouldSwitch = targetIdx >= 0 && targetIdx !== currentPlayingIndex && currentPlaylist[targetIdx];
+  zapPendingIndex = -1;
+
+  if (shouldSwitch) {
+    currentPlayingIndex = targetIdx;
+    loadChannel(currentPlaylist[currentPlayingIndex]);
+  }
+
+  if (hideNow) hideZapOverlay();
+  else scheduleZapHide();
+}
+
+function confirmZapSelection() {
+  commitZapSelection(true);
+}
+
 async function openPlayer(channelId) {
   const ch = allChannels.find(c => c.id === channelId);
   if (!ch) return;
 
   currentPlaylist = gridRows.flatMap(r => r.channels);
   currentPlayingIndex = currentPlaylist.findIndex(c => c.id === channelId);
+  zapPendingIndex = -1;
+  hideZapOverlay(false);
+  hidePlayerInfoPanel();
 
   loadChannel(ch);
 }
@@ -327,7 +476,7 @@ async function loadChannel(ch) {
   logo.src = ch.logo || '';
   logo.style.display = ch.logo ? 'block' : 'none';
   resetPlayerError();
-  showHud();
+  if (!isZapMenuVisible()) showHud();
 
   if (isSenzaEnvironment()) {
     try { await senza.lifecycle.moveToForeground(); } catch (e) { }
@@ -340,6 +489,7 @@ async function loadChannel(ch) {
   const streamType = classifyStream(originalStreamUrl);
   const streamUrl = getPlaybackUrl(originalStreamUrl, streamType);
   const isHLS = streamType === 'hls';
+  updatePlayerInfoPanel(ch, streamType);
 
   if (isSenzaEnvironment() && ENABLE_EXPERIMENTAL_SENZA_HLS && streamType === 'hls') {
     try {
@@ -447,6 +597,11 @@ async function loadChannel(ch) {
 }
 
 async function closePlayer() {
+  clearTimeout(zapCommitTimer);
+  clearTimeout(zapHideTimer);
+  zapPendingIndex = -1;
+  hideZapOverlay(false);
+  hidePlayerInfoPanel();
   document.getElementById('playerOverlay').classList.remove('open');
   const video = document.getElementById('videoEl');
   await cleanupPlayers(video);
@@ -455,8 +610,13 @@ async function closePlayer() {
 
 function changeChannel(dir) {
   if (currentPlaylist.length === 0) return;
-  currentPlayingIndex = (currentPlayingIndex + dir + currentPlaylist.length) % currentPlaylist.length;
-  loadChannel(currentPlaylist[currentPlayingIndex]);
+  const startIdx = getZapSelectedIndex();
+  const nextIdx = (startIdx + dir + currentPlaylist.length) % currentPlaylist.length;
+  zapPendingIndex = nextIdx;
+  showZapOverlay(nextIdx);
+
+  clearTimeout(zapCommitTimer);
+  zapCommitTimer = setTimeout(() => commitZapSelection(false), ZAP_COMMIT_DELAY_MS);
 }
 
 function showHud() {

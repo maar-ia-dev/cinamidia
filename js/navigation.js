@@ -106,7 +106,13 @@ function handleKey(e) {
       case 'ArrowDown': case 'ChannelDown':
         e.preventDefault(); changeChannel(1); break;
       case 'Enter': case 'OK':
-        e.preventDefault(); showHud(); break;
+        e.preventDefault();
+        if (typeof togglePlayerPause === 'function') togglePlayerPause();
+        break;
+      case 'i': case 'I': case 'Info':
+        e.preventDefault();
+        if (typeof togglePlayerInfoPanel === 'function') togglePlayerInfoPanel();
+        break;
       case 'ArrowRight': case '+': case '=': case 'VolumeUp': {
         e.preventDefault();
         const video = document.getElementById('videoEl');
